@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 func main() {
@@ -42,6 +43,50 @@ func main() {
 // | (_| | |_| | |_| | | |  __/ | | | |_| | (_| (_| | |_| | (_) | | | |
 //  \__,_|\__,_|\__|_| |_|\___|_| |_|\__|_|\___\__,_|\__|_|\___/|_| |_|
 //
+
+func authenticate() (string, error) {
+
+	token, err := loadToken()
+
+	if err != nil {
+		return "", fmt.Errorf("failed to load token: %w", err)
+	}
+
+	if len(token) > 0 {
+		fmt.Println("You're already signed in HURRAYYYY")
+		// This is where you will ping the workspaces to see if the token is valid
+	}
+
+	port := 8300
+	authURL := fmt.Sprintf("%shttps://api.devwilson.dev/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
+	fmt.Println(authURL)
+	// Start local server in a goroutine
+	tokenChan := make(chan string, 1)
+	errChan := make(chan error, 1)
+	go func() {
+		token, err := startLocalServer(port)
+		if err != nil {
+			errChan <- err
+		} else {
+			tokenChan <- token
+		}
+	}()
+
+	// Open browser
+	if err := openBrowser(authURL); err != nil {
+		return "", fmt.Errorf("failed to open browser: %w", err)
+	}
+
+	// Wait for token or error with a timeout
+	select {
+	case token := <-tokenChan:
+		return token, nil
+	case err := <-errChan:
+		return "", err
+	case <-time.After(2 * time.Minute):
+		return "", fmt.Errorf("authentication timed out")
+	}
+}
 
 func openBrowser(url string) error {
 	var cmd *exec.Cmd
@@ -108,6 +153,19 @@ func startLocalServer(callbackPort int) (string, error) {
 //  \__\___/|_|\_\___|_| |_|___/
 //
 
+func checkIfTokenIsValid() (bool, error) {
+	var token, err = loadToken()
+	if err != nil {
+		return false, err
+	}
+
+	if len(token) > 0 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func getTokenFilePath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -170,8 +228,7 @@ func deleteToken() error {
 //
 
 func linkCommand() {
-	openBrowser("https://devwilson.dev/login?cli=true?port=8300")
-	startLocalServer(8300)
+	authenticate()
 	fmt.Println("Linking your codebase with Mordecai...")
 }
 
