@@ -201,7 +201,7 @@ func authenticate() (string, error) {
 	}
 
 	port := 8300
-	authURL := fmt.Sprintf("%shttps://api.devwilson.dev/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
+	authURL := fmt.Sprintf("%shttps://api.rabbitcode.dev/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -514,7 +514,7 @@ func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string)
 func getWorkspaces(token string) (string, error) {
 	fmt.Println("Fetching available workspaces...")
 
-	const siteUrl string = "https://api.devwilson.dev"
+	const siteUrl string = "https://api.rabbitcode.dev"
 	endpointURL := fmt.Sprintf("%s/cli/workspaces", siteUrl)
 
 	// Create the request body
@@ -578,7 +578,7 @@ func getWorkspaces(token string) (string, error) {
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, update bool) error {
 
-	const siteUrl string = "https://api.devwilson.dev"
+	const siteUrl string = "https://api.rabbitcode.dev"
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
 
 	postData := struct {
