@@ -12,7 +12,7 @@ The basic syntax for using Mordecai is:
 
 ```mordecai <command>```
 
-Available Commands
+### Available Commands
 
 **link** 
 
