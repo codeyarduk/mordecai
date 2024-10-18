@@ -14,9 +14,9 @@ The basic syntax for using Mordecai is:
 
 Available Commands
 
-```link```
+**link***
 
-mordecai link
+```mordecai link```
 
 This command:
 
@@ -26,15 +26,15 @@ This command:
 - Sends the initial codebase to the selected workspace
 - Starts watching the directory for changes and syncs them in real-time
 
-```logout```
+**logout**
 
-mordecai logout
+```mordecai logout```
 
 Logs out the current user by deleting the stored authentication token.
 
-```--help```
+**--help**
 
-mordecai --help
+```mordecai --help```
 
 Displays usage information and available commands.
 
