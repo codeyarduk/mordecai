@@ -206,7 +206,7 @@ func authenticate() (string, error) {
 	}
 
 	port := 8300
-	authURL := fmt.Sprintf("%s/auth/cli?port=%d", siteUrl, port)
+	authURL := fmt.Sprintf("%s/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
