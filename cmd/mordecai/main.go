@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	// "github.com/AlecAivazis/survey/v2"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -149,7 +148,8 @@ func getFileContents(files []string) ([]FileContent, error) {
 		ext := filepath.Ext(filePath)
 
 		// Check if it's an allowed file type (you can modify this list as needed)
-		allowedExtensions := []string{".go", ".js", ".ts", ".py", ".html", ".css", ".json", ".rb", ".md"}
+		allowedExtensions := []string{".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml", ".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb", ".zig", ".php", ".ts", ".js", ".mts", ".mjs", ".cts", ".cjs"}
+
 		if !contains(allowedExtensions, ext) {
 			continue
 		}
