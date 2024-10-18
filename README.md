@@ -14,7 +14,7 @@ The basic syntax for using Mordecai is:
 
 Available Commands
 
-**link***
+**link** 
 
 ```mordecai link```
 
