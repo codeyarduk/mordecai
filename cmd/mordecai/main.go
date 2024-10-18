@@ -5,7 +5,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/AlecAivazis/survey/v2"
+	// "github.com/AlecAivazis/survey/v2"
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/fsnotify/fsnotify"
 	"net/http"
 	"net/url"
@@ -16,6 +19,8 @@ import (
 	"strings"
 	"time"
 )
+
+const siteUrl = "https://api.rabbitcode.dev"
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
@@ -201,7 +206,7 @@ func authenticate() (string, error) {
 	}
 
 	port := 8300
-	authURL := fmt.Sprintf("%shttps://api.rabbitcode.dev/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
+	authURL := fmt.Sprintf("%s/auth/cli?port=%d", siteUrl, port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -230,24 +235,57 @@ func authenticate() (string, error) {
 	}
 }
 
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
+type model struct {
+	url    string
+	choice string
+}
 
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", url)
-	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
-	default: // Linux and others
-		cmd = exec.Command("xdg-open", url)
-	}
-
-	err := cmd.Start()
-	if err != nil {
-		return fmt.Errorf("failed to open browser: %w", err)
-	}
-
+func (m model) Init() tea.Cmd {
 	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "y", "Y":
+			m.choice = "y"
+			return m, tea.Quit
+		case "n", "N":
+			m.choice = "n"
+			return m, tea.Quit
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m model) View() string {
+	return "Open browser for authentication? (y/n): "
+}
+
+func openBrowser(url string) error {
+	p := tea.NewProgram(model{url: url})
+	m, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("Bubbletea error: %w", err)
+	}
+
+	finalModel := m.(model)
+	if finalModel.choice == "y" {
+		var cmd *exec.Cmd
+		switch runtime.GOOS {
+		case "darwin":
+			cmd = exec.Command("open", url)
+		case "windows":
+			cmd = exec.Command("cmd", "/c", "start", url)
+		default: // Linux and others
+			cmd = exec.Command("xdg-open", url)
+		}
+		return cmd.Start()
+	}
+	return fmt.Errorf("user declined to open browser")
 }
 
 func startLocalServer(callbackPort int) (string, error) {
@@ -368,7 +406,7 @@ func deleteToken() error {
 //   \_/\_/ \__,_|\__\___|_| |_|  \__,_|_|_|  \___|\___|\__\___/|_|   \__, |
 //                                                                    |___/
 
-func watchDirectory(directoryPath, remote, workspaceId, token string) error {
+func watchDirectory(directoryPath, workspaceId, token string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("error creating watcher: %v", err)
@@ -393,8 +431,6 @@ func watchDirectory(directoryPath, remote, workspaceId, token string) error {
 	if err != nil {
 		return fmt.Errorf("error setting up recursive watch: %v", err)
 	}
-
-	fmt.Printf("Watching directory and all subdirectories: %s\n", directoryPath)
 
 	for {
 		select {
@@ -432,7 +468,6 @@ func watchDirectory(directoryPath, remote, workspaceId, token string) error {
 						FileExtension: fileExtension,
 						DataChunks:    content,
 					})
-					fmt.Printf("File added to update list: %s\n", filePath)
 				}
 
 				// If a new directory is created, add it to the watcher
@@ -450,7 +485,6 @@ func watchDirectory(directoryPath, remote, workspaceId, token string) error {
 				}
 
 				timeoutTimer = time.AfterFunc(5*time.Second, func() {
-					fmt.Println("Processing files after timeout")
 					processUpdatedFiles(filesToUpdate, token, workspaceId)
 					filesToUpdate = make([]FileContent, 0)
 				})
@@ -467,36 +501,9 @@ func watchDirectory(directoryPath, remote, workspaceId, token string) error {
 // Helper function to check if a slice contains a string
 
 func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string) {
-	fmt.Println("Files to update:", len(filesToUpdate))
 
 	sendDataToServer(filesToUpdate, token, workspaceId, true)
 
-	//
-	// sendDataToServer(filesToUpdate)
-
-	// payload := map[string]interface{}{
-	// 	"files":       filesToUpdate,
-	// 	"token":       token,
-	// 	"workspaceId": workspaceId,
-	// 	"update":      true,
-	// }
-	//
-	// jsonPayload, err := json.Marshal(payload)
-	// if err != nil {
-	// 	fmt.Printf("Error marshaling JSON: %v\n", err)
-	// 	return
-	// }
-	//
-	// resp, err := http.Post(os.Getenv("SITE_URL")+"/cli/chunk", "application/json", bytes.NewBuffer(jsonPayload))
-	// if err != nil {
-	// 	fmt.Printf("Error sending request: %v\n", err)
-	// 	return
-	// }
-	// defer resp.Body.Close()
-	//
-	// var result map[string]interface{}
-	// json.NewDecoder(resp.Body).Decode(&result)
-	// fmt.Println(result)
 }
 
 //  ___  ___ _ ____   _____ _ __
@@ -513,8 +520,6 @@ func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string)
 
 func getWorkspaces(token string) (string, error) {
 	fmt.Println("Fetching available workspaces...")
-
-	const siteUrl string = "https://api.rabbitcode.dev"
 	endpointURL := fmt.Sprintf("%s/cli/workspaces", siteUrl)
 
 	// Create the request body
@@ -549,36 +554,129 @@ func getWorkspaces(token string) (string, error) {
 		return "", fmt.Errorf("error decoding response: %v", err)
 	}
 
-	// Create choices for user selection
-	var choices []string
-	for _, workspace := range workspaces {
-		choices = append(choices, workspace.WorkspaceName)
+	// Clear the screen and move cursor to top before showing workspace selection
+	fmt.Print("\033[2J")
+	fmt.Print("\033[H")
+
+	// Create a new workspace model with the enhanced styling
+	m := newWorkspaceModel(workspaces)
+
+	// Run the Bubble Tea program
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	selectedModel, err := p.Run()
+	if err != nil {
+		return "", fmt.Errorf("error running workspace selection: %v", err)
 	}
 
-	// Prompt user to select a workspace
-	prompt := &survey.Select{
-		Message: "Select the project that you want to link this directory to:",
-		Options: choices,
-	}
+	// Get the selected workspace
+	selectedWorkspace := selectedModel.(workspaceModel).selected
 
-	var selectedName string
-	if err := survey.AskOne(prompt, &selectedName); err != nil {
-		return "", fmt.Errorf("error during workspace selection: %v", err)
-	}
+	// Clear the screen again
+	fmt.Print("\033[2J")
+	fmt.Print("\033[H")
 
-	// Find the selected workspace ID
-	for _, workspace := range workspaces {
-		if workspace.WorkspaceName == selectedName {
-			return workspace.WorkspaceID, nil
+	// Display the syncing message
+	fmt.Println("\n┌─────────────────────────────────────────────────────┐")
+	for _, w := range workspaces {
+		if w.WorkspaceID == selectedWorkspace {
+			fmt.Printf("│ \033[1;32m✓ Syncing to remote workspace: %s\033[0m\n", w.WorkspaceName)
+			fmt.Println("│")
+			fmt.Println("│ \033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
+			break
 		}
 	}
+	fmt.Println("└─────────────────────────────────────────────────────┘")
 
-	return "", fmt.Errorf("selected workspace not found")
+	return selectedWorkspace, nil
+}
+
+var (
+	titleStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FAFAFA")).
+			Background(lipgloss.Color("#7D56F4")).
+			Padding(0, 1)
+
+	itemStyle = lipgloss.NewStyle().
+			PaddingLeft(4)
+
+	selectedItemStyle = lipgloss.NewStyle().
+				PaddingLeft(2).
+				Foreground(lipgloss.Color("#7D56F4")).
+				SetString("► ")
+)
+
+type workspace struct {
+	id   string
+	name string
+}
+
+func (w workspace) Title() string       { return w.name }
+func (w workspace) Description() string { return "" } // Return an empty string
+func (w workspace) FilterValue() string { return w.name }
+
+type workspaceModel struct {
+	list     list.Model
+	selected string
+}
+
+func (m workspaceModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m workspaceModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "enter" {
+			i, ok := m.list.SelectedItem().(workspace)
+			if ok {
+				m.selected = i.id
+				return m, tea.Quit
+			}
+		}
+	case tea.WindowSizeMsg:
+		h, v := docStyle.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v)
+	}
+
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
+}
+
+func (m workspaceModel) View() string {
+	return docStyle.Render(m.list.View())
+}
+
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
+
+func newWorkspaceModel(workspaces []struct {
+	WorkspaceID   string `json:"workspaceId"`
+	WorkspaceName string `json:"workspaceName"`
+}) workspaceModel {
+	items := make([]list.Item, len(workspaces))
+	for i, w := range workspaces {
+		items[i] = workspace{id: w.WorkspaceID, name: w.WorkspaceName}
+	}
+
+	delegate := list.NewDefaultDelegate()
+	delegate.ShowDescription = false // Hide the description
+	delegate.Styles.NormalTitle = itemStyle
+	delegate.Styles.SelectedTitle = selectedItemStyle.Inline(true).
+		Foreground(lipgloss.Color("#7D56F4"))
+
+	l := list.New(items, delegate, 0, 0)
+	l.Title = "Select a Workspace"
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.Styles.Title = titleStyle
+	l.Styles.PaginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	l.Styles.HelpStyle = list.DefaultStyles().HelpStyle.PaddingLeft(4)
+
+	return workspaceModel{list: l}
 }
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, update bool) error {
 
-	const siteUrl string = "https://api.rabbitcode.dev"
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
 
 	postData := struct {
@@ -665,15 +763,9 @@ func linkCommand() {
 		return
 	}
 
-	fmt.Println("Linking your codebase with Mordecai...")
-	// const siteUrl string = "https://api.rabbitcode.dev"
-	// endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
-	//
 	sendDataToServer(dirContent, token, workspaceId, false)
 
-	// watchDirectory(currentDir, "https://rabbitcode.dev", workspaceId, token)
-
-	err = watchDirectory(currentDir, "https://rabbitcode.dev", workspaceId, token)
+	err = watchDirectory(currentDir, workspaceId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
 		return
