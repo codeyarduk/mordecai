@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
-	// "github.com/fsnotify/fsnotify"
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/fsnotify/fsnotify"
 	"net/http"
 	"net/url"
 	"os"
@@ -361,12 +361,154 @@ func deleteToken() error {
 	return nil
 }
 
-//                  _           _
-//  _ __  _ __ ___ (_) ___  ___| |_ ___
-// | '_ \| '__/ _ \| |/ _ \/ __| __/ __|
-// | |_) | | | (_) | |  __/ (__| |_\__ \
-// | .__/|_|  \___// |\___|\___|\__|___/
-// |_|           |__/
+//                _       _           _ _               _
+// __      ____ _| |_ ___| |__     __| (_)_ __ ___  ___| |_ ___  _ __ _   _
+// \ \ /\ / / _` | __/ __| '_ \   / _` | | '__/ _ \/ __| __/ _ \| '__| | | |
+//  \ V  V / (_| | || (__| | | | | (_| | | | |  __/ (__| || (_) | |  | |_| |
+//   \_/\_/ \__,_|\__\___|_| |_|  \__,_|_|_|  \___|\___|\__\___/|_|   \__, |
+//                                                                    |___/
+
+func watchDirectory(directoryPath, remote, workspaceId, token string) error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return fmt.Errorf("error creating watcher: %v", err)
+	}
+	defer watcher.Close()
+
+	filesToUpdate := make([]FileContent, 0)
+	var timeoutTimer *time.Timer
+
+	// Define allowed file extensions
+	allowedExtensions := []string{".go", ".js", ".ts", ".py", ".html", ".css", ".json", ".rb", ".md"}
+
+	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return watcher.Add(path)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error setting up recursive watch: %v", err)
+	}
+
+	fmt.Printf("Watching directory and all subdirectories: %s\n", directoryPath)
+
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return fmt.Errorf("watcher channel closed")
+			}
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Chmod) != 0 {
+				filePath := event.Name
+				fileExtension := filepath.Ext(filePath)
+
+				// Check if the file extension is allowed
+				if !contains(allowedExtensions, fileExtension) {
+					continue
+				}
+
+				// Check if file is already in filesToUpdate
+				fileRepeated := false
+				for _, file := range filesToUpdate {
+					if file.FilePath == filePath {
+						fileRepeated = true
+						break
+					}
+				}
+
+				if !fileRepeated {
+					content, err := readFile(filePath)
+					if err != nil {
+						fmt.Printf("Error reading file %s: %v\n", filePath, err)
+						continue
+					}
+
+					filesToUpdate = append(filesToUpdate, FileContent{
+						FilePath:      filePath,
+						FileExtension: fileExtension,
+						DataChunks:    content,
+					})
+					fmt.Printf("File added to update list: %s\n", filePath)
+				}
+
+				// If a new directory is created, add it to the watcher
+				if info, err := os.Stat(filePath); err == nil && info.IsDir() {
+					err = watcher.Add(filePath)
+					if err != nil {
+						fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
+					} else {
+						fmt.Printf("New directory added to watch: %s\n", filePath)
+					}
+				}
+
+				if timeoutTimer != nil {
+					timeoutTimer.Stop()
+				}
+
+				timeoutTimer = time.AfterFunc(5*time.Second, func() {
+					fmt.Println("Processing files after timeout")
+					processUpdatedFiles(filesToUpdate, token, workspaceId)
+					filesToUpdate = make([]FileContent, 0)
+				})
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return fmt.Errorf("watcher error channel closed")
+			}
+			fmt.Println("error:", err)
+		}
+	}
+}
+
+// Helper function to check if a slice contains a string
+
+func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string) {
+	fmt.Println("Files to update:", len(filesToUpdate))
+
+	sendDataToServer(filesToUpdate, token, workspaceId, true)
+
+	//
+	// sendDataToServer(filesToUpdate)
+
+	// payload := map[string]interface{}{
+	// 	"files":       filesToUpdate,
+	// 	"token":       token,
+	// 	"workspaceId": workspaceId,
+	// 	"update":      true,
+	// }
+	//
+	// jsonPayload, err := json.Marshal(payload)
+	// if err != nil {
+	// 	fmt.Printf("Error marshaling JSON: %v\n", err)
+	// 	return
+	// }
+	//
+	// resp, err := http.Post(os.Getenv("SITE_URL")+"/cli/chunk", "application/json", bytes.NewBuffer(jsonPayload))
+	// if err != nil {
+	// 	fmt.Printf("Error sending request: %v\n", err)
+	// 	return
+	// }
+	// defer resp.Body.Close()
+	//
+	// var result map[string]interface{}
+	// json.NewDecoder(resp.Body).Decode(&result)
+	// fmt.Println(result)
+}
+
+//  ___  ___ _ ____   _____ _ __
+// / __|/ _ \ '__\ \ / / _ \ '__|
+// \__ \  __/ |   \ V /  __/ |
+// |___/\___|_|    \_/ \___|_|
+//                             _   _
+//   ___  _ __   ___ _ __ __ _| |_(_) ___  _ __  ___
+//  / _ \| '_ \ / _ \ '__/ _` | __| |/ _ \| '_ \/ __|
+// | (_) | |_) |  __/ | | (_| | |_| | (_) | | | \__ \
+//  \___/| .__/ \___|_|  \__,_|\__|_|\___/|_| |_|___/
+//       |_|
 //
 
 func getWorkspaces(token string) (string, error) {
@@ -434,7 +576,7 @@ func getWorkspaces(token string) (string, error) {
 	return "", fmt.Errorf("selected workspace not found")
 }
 
-func sendDataToServer(files []FileContent, token string, workspaceId string) error {
+func sendDataToServer(files []FileContent, token string, workspaceId string, update bool) error {
 
 	const siteUrl string = "https://api.devwilson.dev"
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
@@ -443,10 +585,12 @@ func sendDataToServer(files []FileContent, token string, workspaceId string) err
 		Files       []FileContent `json:"files"`
 		Token       string        `json:"token"`
 		WorkspaceId string        `json:"workspaceId,omitempty"`
+		Update      bool          `json:"update"`
 	}{
 		Files:       files,
 		Token:       token,
 		WorkspaceId: workspaceId, // Use the workspaceID you obtained earlier
+		Update:      update,
 	}
 
 	jsonData, err := json.Marshal(postData)
@@ -525,7 +669,15 @@ func linkCommand() {
 	// const siteUrl string = "https://api.rabbitcode.dev"
 	// endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
 	//
-	sendDataToServer(dirContent, token, workspaceId)
+	sendDataToServer(dirContent, token, workspaceId, false)
+
+	// watchDirectory(currentDir, "https://rabbitcode.dev", workspaceId, token)
+
+	err = watchDirectory(currentDir, "https://rabbitcode.dev", workspaceId, token)
+	if err != nil {
+		fmt.Printf("Error setting up directory watcher: %v\n", err)
+		return
+	}
 
 }
 
