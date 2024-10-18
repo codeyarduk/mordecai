@@ -201,7 +201,7 @@ func authenticate() (string, error) {
 	}
 
 	port := 8300
-	authURL := fmt.Sprintf("%shttps://api.rabbitcode.dev/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
+	authURL := fmt.Sprintf("%shttps://api.devwilson.dev/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -372,7 +372,7 @@ func deleteToken() error {
 func getWorkspaces(token string) (string, error) {
 	fmt.Println("Fetching available workspaces...")
 
-	const siteUrl string = "https://api.rabbitcode.dev"
+	const siteUrl string = "https://api.devwilson.dev"
 	endpointURL := fmt.Sprintf("%s/cli/workspaces", siteUrl)
 
 	// Create the request body
@@ -434,6 +434,47 @@ func getWorkspaces(token string) (string, error) {
 	return "", fmt.Errorf("selected workspace not found")
 }
 
+func sendDataToServer(files []FileContent, token string, workspaceId string) error {
+
+	const siteUrl string = "https://api.devwilson.dev"
+	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
+
+	postData := struct {
+		Files       []FileContent `json:"files"`
+		Token       string        `json:"token"`
+		WorkspaceId string        `json:"workspaceId,omitempty"`
+	}{
+		Files:       files,
+		Token:       token,
+		WorkspaceId: workspaceId, // Use the workspaceID you obtained earlier
+	}
+
+	jsonData, err := json.Marshal(postData)
+	if err != nil {
+		fmt.Printf("Error marshaling JSON: %v\n", err)
+		return err
+	}
+
+	// Send the POST request
+	req, err := http.NewRequest("POST", endpointURL, bytes.NewReader(jsonData))
+
+	if err != nil {
+		fmt.Printf("Error creating request: %v\n", err)
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Printf("Error sending request: %v\n", err)
+		return err
+	}
+	defer resp.Body.Close()
+	// Handle the response status code and body as needed
+	return nil
+}
+
 //            _                                                   _
 //  ___ _   _| |__   ___ ___  _ __ ___  _ __ ___   __ _ _ __   __| |___
 // / __| | | | '_ \ / __/ _ \| '_ ` _ \| '_ ` _ \ / _` | '_ \ / _` / __|
@@ -474,49 +515,17 @@ func linkCommand() {
 		fmt.Println("Error getting token: %v\n", tokenErr)
 	}
 
-	workspaceID, err := getWorkspaces(token)
+	workspaceId, err := getWorkspaces(token)
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
 	}
 
 	fmt.Println("Linking your codebase with Mordecai...")
-	const siteUrl string = "https://api.rabbitcode.dev"
-	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
-
-	postData := struct {
-		Files       []FileContent `json:"files"`
-		Token       string        `json:"token"`
-		WorkspaceId string        `json:"workspaceId,omitempty"`
-	}{
-		Files:       dirContent,
-		Token:       token,
-		WorkspaceId: workspaceID, // Use the workspaceID you obtained earlier
-	}
-	// Marshal the data to JSON
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		fmt.Printf("Error marshaling JSON: %v\n", err)
-		return
-	}
-
-	// Send the POST request
-	req, err := http.NewRequest("POST", endpointURL, bytes.NewReader(jsonData))
-	if err != nil {
-		fmt.Printf("Error creating request: %v\n", err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Printf("Error sending request: %v\n", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Handle the response status code and body as needed
+	// const siteUrl string = "https://api.rabbitcode.dev"
+	// endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
+	//
+	sendDataToServer(dirContent, token, workspaceId)
 
 }
 
