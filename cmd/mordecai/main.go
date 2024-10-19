@@ -75,7 +75,7 @@ func readDir(dirPath string) ([]string, error) {
 
 	// Read .gitignore file
 	gitignorePath := filepath.Join(dirPath, ".gitignore")
-	ignorePatterns := []string{".git"}
+	ignorePatterns := []string{".git", "node_modules"}
 
 	if _, err := os.Stat(gitignorePath); err == nil {
 		file, err := os.Open(gitignorePath)
@@ -93,6 +93,8 @@ func readDir(dirPath string) ([]string, error) {
 		}
 	}
 
+	allowedExtensions := []string{".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml", ".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb", ".zig", ".php", ".ts", ".js", ".mts", ".mjs", ".cts", ".cjs"}
+
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -100,6 +102,7 @@ func readDir(dirPath string) ([]string, error) {
 
 		// Check if the file/directory should be ignored
 		for _, pattern := range ignorePatterns {
+			// Check if the pattern matches the base name
 			matched, err := filepath.Match(pattern, filepath.Base(path))
 			if err != nil {
 				return err
@@ -110,10 +113,25 @@ func readDir(dirPath string) ([]string, error) {
 				}
 				return nil
 			}
+
+			// Check if the pattern is anywhere in the path
+			if strings.Contains(path, pattern) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 		}
 
 		if !info.IsDir() {
-			files = append(files, path)
+			// Check if the file extension is in the allowed list
+			ext := filepath.Ext(path)
+			for _, allowedExt := range allowedExtensions {
+				if ext == allowedExt {
+					files = append(files, path)
+					break
+				}
+			}
 		}
 		return nil
 	})
@@ -419,11 +437,20 @@ func watchDirectory(directoryPath, workspaceId, token string) error {
 	// Define allowed file extensions
 	allowedExtensions := []string{".go", ".js", ".ts", ".py", ".html", ".css", ".json", ".rb", ".md"}
 
+	// Define directories to ignore
+	ignoreDirs := []string{"node_modules", "vendor", "dist", "build", ".git"}
+
 	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
+			// Check if the directory should be ignored
+			if containsDir(ignoreDirs, info.Name()) {
+				return filepath.SkipDir
+			}
+
+			// fmt.Printf("Watching directory: %s\n", path)
 			return watcher.Add(path)
 		}
 		return nil
@@ -444,6 +471,11 @@ func watchDirectory(directoryPath, workspaceId, token string) error {
 
 				// Check if the file extension is allowed
 				if !contains(allowedExtensions, fileExtension) {
+					continue
+				}
+
+				// Check if the file is in an ignored directory
+				if isInIgnoredDir(filePath, ignoreDirs) {
 					continue
 				}
 
@@ -472,11 +504,13 @@ func watchDirectory(directoryPath, workspaceId, token string) error {
 
 				// If a new directory is created, add it to the watcher
 				if info, err := os.Stat(filePath); err == nil && info.IsDir() {
-					err = watcher.Add(filePath)
-					if err != nil {
-						fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
-					} else {
-						fmt.Printf("New directory added to watch: %s\n", filePath)
+					if !containsDir(ignoreDirs, info.Name()) {
+						err = watcher.Add(filePath)
+						if err != nil {
+							fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
+						} else {
+							fmt.Printf("New directory added to watch: %s\n", filePath)
+						}
 					}
 				}
 
@@ -496,6 +530,27 @@ func watchDirectory(directoryPath, workspaceId, token string) error {
 			fmt.Println("error:", err)
 		}
 	}
+}
+
+// Helper function to check if a directory should be ignored
+func containsDir(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// Helper function to check if a file is in an ignored directory
+func isInIgnoredDir(filePath string, ignoreDirs []string) bool {
+	parts := strings.Split(filePath, string(os.PathSeparator))
+	for _, part := range parts {
+		if containsDir(ignoreDirs, part) {
+			return true
+		}
+	}
+	return false
 }
 
 // Helper function to check if a slice contains a string
