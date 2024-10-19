@@ -725,7 +725,6 @@ func sendDataToServer(files []FileContent, token string, workspaceId string, upd
 //
 
 func linkCommand() {
-	fmt.Println("linkin")
 	currentDir, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Error getting current directory: %v\n", err)
