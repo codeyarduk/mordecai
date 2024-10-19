@@ -206,7 +206,7 @@ func authenticate() (string, error) {
 	}
 
 	port := 8300
-	authURL := fmt.Sprintf("%s/auth/cli?port=%d", os.Getenv("SITE_URL"), port)
+	authURL := fmt.Sprintf("%s/auth/cli?port=%d", siteUrl, port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -725,7 +725,7 @@ func sendDataToServer(files []FileContent, token string, workspaceId string, upd
 //
 
 func linkCommand() {
-
+	fmt.Println("linkin")
 	currentDir, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Error getting current directory: %v\n", err)
