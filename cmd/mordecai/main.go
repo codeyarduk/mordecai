@@ -818,7 +818,6 @@ func linkCommand() {
 	}
 
 	sendDataToServer(dirContent, token, workspaceId, false)
-
 	err = watchDirectory(currentDir, workspaceId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
