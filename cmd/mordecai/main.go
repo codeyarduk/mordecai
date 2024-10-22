@@ -20,7 +20,7 @@ import (
 )
 
 const siteUrl string = "https://api.devwilson.dev"
-const version string = "v0.0.3"
+const version string = "v0.0.4"
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
@@ -838,12 +838,23 @@ func linkCommand() {
 }
 
 func logoutCommand() {
+	token, tokenErr := loadToken()
+
+	if tokenErr != nil {
+		fmt.Printf("Error loading token: %v\n", tokenErr)
+		return
+	}
+
 	err := deleteToken()
 	if err != nil {
 		fmt.Printf("Error deleting token: %v\n", err)
 		return
 	}
-	fmt.Println("Successfully logged out!")
+	if len(token) > 0 {
+		fmt.Println("Successfully logged out!")
+		return
+	}
+	fmt.Println("No active session found.")
 }
 
 func versionCommand() {
