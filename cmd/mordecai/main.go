@@ -19,7 +19,8 @@ import (
 	"time"
 )
 
-const siteUrl = "https://api.devwilson.dev"
+const siteUrl string = "https://api.devwilson.dev"
+const version string = "v0.0.2"
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
@@ -42,6 +43,8 @@ func main() {
 		logoutCommand()
 	case "--help":
 		helpCommand()
+	case "--version":
+		versionCommand()
 	default:
 		fmt.Printf("Unknown command %s\n", command)
 		fmt.Println("Use 'mordecai --help' for usage information.")
@@ -843,8 +846,14 @@ func logoutCommand() {
 	fmt.Println("Successfully logged out!")
 }
 
+func versionCommand() {
+	fmt.Printf("mordecai version %s\n", version)
+}
+
 func helpCommand() {
 	fmt.Println("Mordecai CLI Usage:")
-	fmt.Println("  mordecai link     - Link your codebase with Mordecai")
-	fmt.Println("  mordecai --help   - Display this help message")
+	fmt.Println("  mordecai link        - Link your codebase with Mordecai")
+	fmt.Println("  mordecai logout      - Logout of your Mordecai account")
+	fmt.Println("  mordecai --help      - Display this help message")
+	fmt.Println("  mordecai --version   - Display this help message")
 }
