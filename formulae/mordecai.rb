@@ -1,8 +1,8 @@
 class Mordecai < Formula
   desc "CLI tool for Mordecai"
-  homepage "https://github.com/yourusername/mordecai-cli"
-  url "file:///Users/david/CodeYard/mordecai/cli/mordecai-cli-go/mordecai-cli-1.0.0.tar.gz"
-  sha256 "27f7441208acb6204559d621bb19f33c022ed6d8637df1a6e132a854a6aeea85"
+  homepage "https://github.com/codeyarduk/mordecai"
+  url "file:///Users/david/CodeYard/mordecai/cli/mordecai/mordecai-cli-1.0.0.tar.gz"
+  sha256 "9a026d8971caaff2109c03cbda62d1f41533136600e261a66093674c7d348ea2"
 
   depends_on "go" => :build
 

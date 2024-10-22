@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-const siteUrl = "https://api.rabbitcode.dev"
+const siteUrl = "https://api.devwilson.dev"
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
@@ -83,7 +83,7 @@ func readDir(dirPath string) ([]string, error) {
 			return nil, fmt.Errorf("error opening .gitignore: %v", err)
 		}
 		defer file.Close()
-
+		// What is this doing?
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			pattern := strings.TrimSpace(scanner.Text())
@@ -157,6 +157,7 @@ func getFileContents(files []string) ([]FileContent, error) {
 		info, err := os.Stat(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("error getting file info for %s: %v", filePath, err)
+			// Should a continue be here?
 		}
 		if !info.Mode().IsRegular() {
 			continue // Skip non-regular files
@@ -176,6 +177,8 @@ func getFileContents(files []string) ([]FileContent, error) {
 		content, err := readFile(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("error reading file %s: %v", filePath, err)
+			// Should a continue be here?
+
 		}
 
 		fileContents = append(fileContents, FileContent{
@@ -219,10 +222,12 @@ func authenticate() (string, error) {
 	}
 
 	if len(token) > 0 {
+		// Remove this line
 		fmt.Println("You're already signed in HURRAYYYY")
 		// This is where you will ping the workspaces to see if the token is valid
 	}
 
+	// This needs to keep retrying if the port is in use
 	port := 8300
 	authURL := fmt.Sprintf("%s/auth/cli?port=%d", siteUrl, port)
 	// Start local server in a goroutine
@@ -423,6 +428,8 @@ func deleteToken() error {
 //  \ V  V / (_| | || (__| | | | | (_| | | | |  __/ (__| || (_) | |  | |_| |
 //   \_/\_/ \__,_|\__\___|_| |_|  \__,_|_|_|  \___|\___|\__\___/|_|   \__, |
 //                                                                    |___/
+
+// FIX THE MEMORY LEAKS
 
 func watchDirectory(directoryPath, workspaceId, token string) error {
 	watcher, err := fsnotify.NewWatcher()
@@ -660,6 +667,7 @@ var (
 				SetString("► ")
 )
 
+// DUPLICATED TYPE
 type workspace struct {
 	id   string
 	name string
