@@ -32,7 +32,9 @@ curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/uninstall.s
 
 The basic syntax for using Mordecai is:
 
-```mordecai <command>```
+```shell 
+mordecai <command>
+```
 
 ### Available Commands
 
