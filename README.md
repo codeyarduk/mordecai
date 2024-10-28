@@ -2,9 +2,9 @@
 
 Mordecai is a command-line interface (CLI) tool designed to link your local codebase with a remote workspace and synchronise file changes in real-time.
 
-#### Installation
+## Installation
 
-##### Brew
+### Brew
 
 ```shell
 brew tap codeyarduk/mordecai
@@ -14,7 +14,7 @@ brew tap codeyarduk/mordecai
 $ brew install mordecai
 ```
 
-##### Curl
+### Curl
 
 **Install script**
 
@@ -28,8 +28,7 @@ curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh 
 curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/uninstall.sh | bash 
 ```
 
-
-**Usage**
+## Usage
 
 The basic syntax for using Mordecai is:
 
@@ -61,7 +60,7 @@ Logs out the current user by deleting the stored authentication token.
 
 Displays usage information and available commands.
 
-**Key Features**
+## About the tool
 
 - Authentication: Uses a browser-based OAuth flow for secure user authentication.
 - Workspace Selection: Allows users to choose from available remote workspaces.
