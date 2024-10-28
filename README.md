@@ -11,7 +11,7 @@ brew tap codeyarduk/mordecai
 ```
 
 ```shell
-$ brew install mordecai
+brew install mordecai
 ```
 
 ### Curl
