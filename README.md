@@ -6,7 +6,9 @@ Mordecai is a command-line interface (CLI) tool designed to link your local code
 
 **Brew**
 
-```$ brew tap codeyarduk/mordecai```
+```shell
+$ brew tap codeyarduk/mordecai
+```
 
 ```$ brew install mordecai```
 
