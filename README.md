@@ -2,9 +2,9 @@
 
 Mordecai is a command-line interface (CLI) tool designed to link your local codebase with a remote workspace and synchronise file changes in real-time.
 
-**Installation**
+#### Installation
 
-**Brew**
+##### Brew
 
 ```shell
 brew tap codeyarduk/mordecai
@@ -14,15 +14,15 @@ brew tap codeyarduk/mordecai
 $ brew install mordecai
 ```
 
-**Curl**
+##### Curl
 
-_Install script_
+**Install script**
 
 ```shell
 curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash
 ```
 
-_Uninstall script_
+**Uninstall script**
 
 ```shell
 curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/uninstall.sh | bash 
