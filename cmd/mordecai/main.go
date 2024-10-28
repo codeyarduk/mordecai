@@ -21,7 +21,7 @@ import (
 )
 
 const siteUrl string = "https://api.devwilson.dev"
-const version string = "v0.0.4"
+const version string = "v0.0.5"
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
