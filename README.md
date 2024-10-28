@@ -10,6 +10,21 @@ Mordecai is a command-line interface (CLI) tool designed to link your local code
 
 ```$ brew install mordecai```
 
+**Curl**
+
+_Install script_
+
+```bash
+$ curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash
+```
+
+_Uninstall script_
+
+```bash
+$ curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/uninstall.sh | bash 
+```
+
+
 **Usage**
 
 The basic syntax for using Mordecai is:
