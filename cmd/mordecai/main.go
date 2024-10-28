@@ -21,7 +21,7 @@ import (
 )
 
 const siteUrl string = "https://api.devwilson.dev"
-const version string = "v0.0.5"
+const version string = "v0.0.6"
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
@@ -32,38 +32,45 @@ const version string = "v0.0.5"
 
 func main() {
 
-	// Check for the latest version
-	latestVersion, err := getLatestVersion()
-	if err == nil && compareVersions(latestVersion, version) > 0 {
-		m := VersionUpdateModel{
-			latestVersion:  latestVersion,
-			currentVersion: version,
-		}
-
-		p := tea.NewProgram(m)
-		finalModel, err := p.Run()
-		if err != nil {
-			fmt.Println("Error running program:", err)
-			os.Exit(1)
-		}
-
-		if finalModel.(VersionUpdateModel).choice == "y" {
-			// Implement update logic here
-			fmt.Println("Updating Mordecai...")
-			// You'll need to implement the actual update mechanism
-			os.Exit(0)
-		}
-
-		return
-	}
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: mordecai <commands>")
-		os.Exit(1)
-	}
-
 	command := os.Args[1]
 	switch command {
 	case "link":
+		// Check for the latest version
+		latestVersion, err := getLatestVersion()
+		if err == nil && compareVersions(latestVersion, version) > 0 {
+			m := VersionUpdateModel{
+				latestVersion:  latestVersion,
+				currentVersion: version,
+			}
+
+			p := tea.NewProgram(m)
+			finalModel, err := p.Run()
+			if err != nil {
+				fmt.Println("Error running program:", err)
+				os.Exit(1)
+			}
+
+			if finalModel.(VersionUpdateModel).choice == "y" {
+				cmd := exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash")
+
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					fmt.Printf("Error executing command: %v\n", err)
+					return
+				}
+
+				fmt.Printf("\n%s\nSuccessfully updated Mordecai\n", output)
+
+				os.Exit(0)
+			}
+
+			return
+		}
+		if len(os.Args) < 2 {
+			fmt.Println("Usage: mordecai <commands>")
+			os.Exit(1)
+		}
+
 		linkCommand()
 	case "logout":
 		logoutCommand()
