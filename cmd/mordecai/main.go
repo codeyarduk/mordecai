@@ -22,6 +22,7 @@ import (
 
 const siteUrl string = "https://api.devwilson.dev"
 const version string = "v0.0.6"
+const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
@@ -35,7 +36,7 @@ func main() {
 	command := os.Args[1]
 	switch command {
 	case "link":
-		// Check for the latest version
+
 		latestVersion, err := getLatestVersion()
 		if err == nil && compareVersions(latestVersion, version) > 0 {
 			m := VersionUpdateModel{
@@ -93,12 +94,34 @@ func main() {
 //                                           |___/
 
 func getLatestVersion() (string, error) {
-	cmd := exec.Command("mordecai", "--version")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
+
+	// Check for the latest version
+	type Release struct {
+		TagName string `json:"tag_name"`
 	}
-	return strings.TrimSpace(string(output)), nil
+
+	// Make the HTTP GET request
+	resp, err := http.Get(githubAPI)
+	if err != nil {
+		fmt.Printf("Error fetching release: %v\n", err)
+	}
+	defer resp.Body.Close()
+
+	// Check for a successful response
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("Unexpected response status: %d\n", resp.StatusCode)
+	}
+
+	// Read and parse the response body
+	var release Release
+	err = json.NewDecoder(resp.Body).Decode(&release)
+	if err != nil {
+		fmt.Printf("Error parsing JSON: %v\n", err)
+	}
+
+	// Output the latest version tag
+	fmt.Printf("Latest version: %s\n", release.TagName)
+	return release.TagName, err
 }
 
 func compareVersions(v1, v2 string) int {
