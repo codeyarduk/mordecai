@@ -70,6 +70,8 @@ Displays usage information and available commands.
 
 ## About the tool
 
+**The basics**
+
 - Authentication: Uses a browser-based OAuth flow for secure user authentication.
 - Workspace Selection: Allows users to choose from available remote workspaces.
 - File Synchronization: Watches the local directory for changes and syncs them to the remote workspace.
