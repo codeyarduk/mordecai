@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -30,6 +31,31 @@ const version string = "v0.0.4"
 //
 
 func main() {
+
+	// Check for the latest version
+	latestVersion, err := getLatestVersion()
+	if err == nil && compareVersions(latestVersion, version) > 0 {
+		m := VersionUpdateModel{
+			latestVersion:  latestVersion,
+			currentVersion: version,
+		}
+
+		p := tea.NewProgram(m)
+		finalModel, err := p.Run()
+		if err != nil {
+			fmt.Println("Error running program:", err)
+			os.Exit(1)
+		}
+
+		if finalModel.(VersionUpdateModel).choice == "y" {
+			// Implement update logic here
+			fmt.Println("Updating Mordecai...")
+			// You'll need to implement the actual update mechanism
+			os.Exit(0)
+		}
+
+		return
+	}
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: mordecai <commands>")
 		os.Exit(1)
@@ -52,6 +78,115 @@ func main() {
 	}
 }
 
+//                     _             _
+// __   _____ _ __ ___(_) ___  _ __ (_)_ __   __ _
+// \ \ / / _ \ '__/ __| |/ _ \| '_ \| | '_ \ / _` |
+//  \ V /  __/ |  \__ \ | (_) | | | | | | | | (_| |
+//   \_/ \___|_|  |___/_|\___/|_| |_|_|_| |_|\__, |
+//                                           |___/
+
+func getLatestVersion() (string, error) {
+	cmd := exec.Command("mordecai", "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func compareVersions(v1, v2 string) int {
+	v1Parts := strings.Split(v1, ".")
+	v2Parts := strings.Split(v2, ".")
+
+	for i := 0; i < len(v1Parts) && i < len(v2Parts); i++ {
+		n1, _ := strconv.Atoi(v1Parts[i])
+		n2, _ := strconv.Atoi(v2Parts[i])
+		if n1 < n2 {
+			return -1
+		}
+		if n1 > n2 {
+			return 1
+		}
+	}
+
+	return len(v1Parts) - len(v2Parts)
+}
+
+type VersionUpdateModel struct {
+	latestVersion  string
+	currentVersion string
+	choice         string
+	quitting       bool
+}
+
+func (m VersionUpdateModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m VersionUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "y", "Y":
+			m.choice = "y"
+			m.quitting = true
+			return m, tea.Quit
+		case "n", "N", "q", "Q", "ctrl+c":
+			m.choice = "n"
+			m.quitting = true
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m VersionUpdateModel) View() string {
+	if m.quitting {
+		return ""
+	}
+
+	var s strings.Builder
+
+	s.WriteString(statusMessageStyle.Render("  UPDATE AVAILABLE  "))
+	s.WriteString("\n\n")
+
+	s.WriteString("Current version: ")
+	s.WriteString(versionStyle.Render(m.currentVersion))
+	s.WriteString("\n")
+
+	s.WriteString("Latest version:  ")
+	s.WriteString(versionStyle.Render(m.latestVersion))
+	s.WriteString("\n\n")
+
+	s.WriteString("To continue using the CLI tool, we need to update it.\n")
+	s.WriteString("Can we install the update? (y/N): ")
+	s.WriteString(versionStyle.Render(m.choice))
+
+	return s.String()
+}
+
+var (
+	subtle    = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
+	highlight = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
+	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
+
+	divider = lipgloss.NewStyle().
+		Foreground(subtle).
+		Render("•")
+
+	urlStyle = lipgloss.NewStyle().Foreground(special).Underline(true)
+
+	statusMessageStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFDF5")).
+				Background(lipgloss.Color("#FF5F87")).
+				Padding(0, 1)
+
+	versionStyle = lipgloss.NewStyle().
+			Foreground(highlight).
+			Bold(true)
+)
+
+//
 //   __ _ _
 //  / _(_) | ___
 // | |_| | |/ _ \
