@@ -38,7 +38,9 @@ The basic syntax for using Mordecai is:
 
 **link** 
 
-```mordecai link```
+```shell 
+mordecai link
+```
 
 This command:
 
@@ -50,13 +52,17 @@ This command:
 
 **logout**
 
-```mordecai logout```
+```shell
+mordecai logout
+```
 
 Logs out the current user by deleting the stored authentication token.
 
 **--help**
 
-```mordecai --help```
+```shell 
+mordecai --help
+```
 
 Displays usage information and available commands.
 
