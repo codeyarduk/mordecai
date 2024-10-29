@@ -18,6 +18,17 @@ else
     exit 1
 fi
 
+if [ "$OS" = "darwin" ]; then
+    OS="Darwin"
+elif [ "$OS" = "linux" ]; then
+    OS="Linux"
+fi
+
+# For arm64 architecture
+if [ "$ARCH" = "arm64" ]; then
+    ARCH="arm64"
+fi
+
 # Determine latest release
 LATEST_RELEASE=$(curl -s https://api.github.com/repos/$GITHUB_REPO/releases/latest | grep "tag_name" | cut -d '"' -f 4)
 
