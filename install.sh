@@ -18,6 +18,7 @@ else
     exit 1
 fi
 
+# Normalize OS names
 if [ "$OS" = "darwin" ]; then
     OS="Darwin"
 elif [ "$OS" = "linux" ]; then
@@ -29,6 +30,9 @@ if [ "$ARCH" = "arm64" ]; then
     ARCH="arm64"
 fi
 
+echo "Detected OS: $OS"
+echo "Detected Architecture: $ARCH"
+
 # Determine latest release
 LATEST_RELEASE=$(curl -s https://api.github.com/repos/$GITHUB_REPO/releases/latest | grep "tag_name" | cut -d '"' -f 4)
 
@@ -38,12 +42,27 @@ if [ "$OS" = "windows" ]; then
 fi
 DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/$LATEST_RELEASE/${BINARY_NAME}_${OS}_${ARCH}.tar.gz"
 
+echo "Downloading from: $DOWNLOAD_URL"
+
 # Download and install
 echo "Downloading $BINARY_NAME..."
-curl -L $DOWNLOAD_URL | tar xz -C /tmp
+if ! curl -L $DOWNLOAD_URL | tar xz -C /tmp; then
+    echo "Download or extraction failed"
+    exit 1
+fi
 
-# Create install directory if it doesn't exist (for Windows)
-mkdir -p "$INSTALL_DIR"
+# Check if the binary was successfully extracted
+if [ ! -f "/tmp/$BINARY_NAME" ]; then
+    echo "Binary not found after download"
+    exit 1
+fi
+
+# Create install directory if it doesn't exist (using sudo for Linux/macOS)
+if [ "$OS" != "windows" ]; then
+    sudo mkdir -p "$INSTALL_DIR"
+else
+    mkdir -p "$INSTALL_DIR"
+fi
 
 # Move binary to install directory
 if [ "$OS" = "windows" ]; then
