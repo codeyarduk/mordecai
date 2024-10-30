@@ -68,6 +68,14 @@ mordecai --help
 
 Displays usage information and available commands.
 
+**--version**
+
+```shell 
+mordecai --version
+```
+
+Displays the version of Mordecai you have got installed
+
 ## About the tool
 
 **The basics**
