@@ -25,10 +25,22 @@ elif [ "$OS" = "linux" ]; then
     OS="Linux"
 fi
 
-# For arm64 architecture
-if [ "$ARCH" = "arm64" ]; then
-    ARCH="arm64"
-fi
+# Map architecture names
+case "$ARCH" in
+    x86_64)
+        ARCH="x86_64"
+        ;;
+    aarch64|arm64)
+        ARCH="arm64"
+        ;;
+    i386|i686)
+        ARCH="i386"
+        ;;
+    *)
+        echo "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
 
 echo "Detected OS: $OS"
 echo "Detected Architecture: $ARCH"
@@ -37,18 +49,21 @@ echo "Detected Architecture: $ARCH"
 LATEST_RELEASE=$(curl -s https://api.github.com/repos/$GITHUB_REPO/releases/latest | grep "tag_name" | cut -d '"' -f 4)
 
 # Construct download URL
-if [ "$OS" = "windows" ]; then
-    BINARY_NAME="${BINARY_NAME}.exe"
+if [ "$OS" = "Windows" ]; then
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/$LATEST_RELEASE/${BINARY_NAME}_${OS}_${ARCH}.zip"
+else
+    DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/$LATEST_RELEASE/${BINARY_NAME}_${OS}_${ARCH}.tar.gz"
 fi
-DOWNLOAD_URL="https://github.com/$GITHUB_REPO/releases/download/$LATEST_RELEASE/${BINARY_NAME}_${OS}_${ARCH}.tar.gz"
 
 echo "Downloading from: $DOWNLOAD_URL"
 
 # Download and install
 echo "Downloading $BINARY_NAME..."
-if ! curl -L $DOWNLOAD_URL | tar xz -C /tmp; then
-    echo "Download or extraction failed"
-    exit 1
+if [ "$OS" = "Windows" ]; then
+    curl -L -o /tmp/${BINARY_NAME}.zip $DOWNLOAD_URL
+    unzip /tmp/${BINARY_NAME}.zip -d /tmp
+else
+    curl -L $DOWNLOAD_URL | tar xz -C /tmp
 fi
 
 # Check if the binary was successfully extracted
@@ -58,15 +73,15 @@ if [ ! -f "/tmp/$BINARY_NAME" ]; then
 fi
 
 # Create install directory if it doesn't exist (using sudo for Linux/macOS)
-if [ "$OS" != "windows" ]; then
+if [ "$OS" != "Windows" ]; then
     sudo mkdir -p "$INSTALL_DIR"
 else
     mkdir -p "$INSTALL_DIR"
 fi
 
 # Move binary to install directory
-if [ "$OS" = "windows" ]; then
-    mv /tmp/$BINARY_NAME "$INSTALL_DIR"
+if [ "$OS" = "Windows" ]; then
+    mv /tmp/$BINARY_NAME.exe "$INSTALL_DIR"
 else
     sudo mv /tmp/$BINARY_NAME $INSTALL_DIR
     sudo chmod +x $INSTALL_DIR/$BINARY_NAME
@@ -76,7 +91,7 @@ echo "$BINARY_NAME installed successfully in $INSTALL_DIR"
 echo "Make sure $INSTALL_DIR is in your PATH"
 
 # Additional instructions for Windows users
-if [ "$OS" = "windows" ]; then
+if [ "$OS" = "Windows" ]; then
     echo "For Windows users:"
     echo "1. Ensure $INSTALL_DIR is in your PATH."
     echo "2. You may need to restart your terminal or run 'refreshenv' for changes to take effect."
