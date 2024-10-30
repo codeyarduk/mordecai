@@ -20,8 +20,8 @@ import (
 	"time"
 )
 
-const siteUrl string = "https://api.devwilson.dev"
-const version string = "v0.0.8"
+const siteUrl string = "https://api.rabbitcode.dev"
+const version string = "v0.0.9"
 const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 
 //                          _                _
@@ -243,7 +243,7 @@ func readDir(dirPath string) ([]string, error) {
 
 	// Read .gitignore file
 	gitignorePath := filepath.Join(dirPath, ".gitignore")
-	ignorePatterns := []string{".git", "node_modules"}
+	ignorePatterns := []string{".git", "node_modules", "package-lock.json"}
 
 	if _, err := os.Stat(gitignorePath); err == nil {
 		file, err := os.Open(gitignorePath)
@@ -283,11 +283,16 @@ func readDir(dirPath string) ([]string, error) {
 			}
 
 			// Check if the pattern is anywhere in the path
-			if strings.Contains(path, pattern) {
-				if info.IsDir() {
+			if strings.HasPrefix(pattern, "/") {
+				// Absolute path pattern
+				if strings.HasPrefix(path, filepath.Clean(pattern)) {
 					return filepath.SkipDir
 				}
-				return nil
+			} else {
+				// Relative path pattern
+				if strings.Contains(path, string(filepath.Separator)+pattern+string(filepath.Separator)) {
+					return filepath.SkipDir
+				}
 			}
 		}
 
@@ -1031,5 +1036,5 @@ func helpCommand() {
 	fmt.Println("  mordecai link        - Link your codebase with Mordecai")
 	fmt.Println("  mordecai logout      - Logout of your Mordecai account")
 	fmt.Println("  mordecai --help      - Display this help message")
-	fmt.Println("  mordecai --version   - Display this help message")
+	fmt.Println("  mordecai --version   - Display the version of Mordecai you have installed")
 }
