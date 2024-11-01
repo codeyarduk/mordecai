@@ -108,5 +108,5 @@ The CLI provides informative error messages for various scenarios, including aut
 - Requires an active internet connection for synchronization.
 
 
-For more information or support, please contact [David on X](https://x.com/davidwrossiter).
+For more information or support, please contact [David on Twitter](https://x.com/davidwrossiter).
 
