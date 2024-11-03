@@ -1,7 +1,19 @@
-Copyright 2024 CodeYard Limited
+Copyright (c) 2024 CodeYard Limited
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use the Software for personal, non-commercial purposes only, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+1. Non-Commercial Use: The Software may not be used for any commercial purposes whatsoever. Commercial purposes include, but are not limited to, using the Software in a commercial product, using the Software in a business environment, or using the Software to generate revenue directly or indirectly.
 
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+2. Distribution Restriction: Usage is only permitted when the Software is obtained and installed through the methods outlined in https://github.com/codeyarduk/mordecai. This includes, but is not limited to, direct downloads from the GitHub repository, installation via the custom Homebrew tap (codeyarduk/mordecai), and installation using curl as described in the repository's README.
+
+3. No Modification: The Software may not be modified, altered, or adapted in any way without explicit written permission from the copyright holder.
+
+4. No Redistribution: The Software may not be redistributed, shared, or made available for download through any unauthorized channels.
+
+5. Attribution: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+By using this Software, you agree to abide by the terms of this license. Any violation of these terms will automatically terminate your rights under this license.
+
+For any use outside the scope of this license, please contact [David on X](https://x.com/davidwrossiter).
