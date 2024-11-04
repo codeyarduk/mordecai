@@ -396,7 +396,6 @@ func authenticate() (string, error) {
 
 	if len(token) > 0 {
 		// Remove this line
-		fmt.Println("You're already signed in HURRAYYYY")
 		// This is where you will ping the workspaces to see if the token is valid
 	}
 
