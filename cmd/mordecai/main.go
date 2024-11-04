@@ -387,7 +387,7 @@ func contains(slice []string, item string) bool {
 //
 
 func authenticate() (string, error) {
-
+	authenticateUrl := "https://devwilson.dev"
 	token, err := loadToken()
 
 	if err != nil {
@@ -401,7 +401,7 @@ func authenticate() (string, error) {
 
 	// This needs to keep retrying if the port is in use
 	port := 8300
-	authURL := fmt.Sprintf("%s/auth/cli?port=%d", siteUrl, port)
+	authURL := fmt.Sprintf("%s/auth/cli?port=%d", authenticateUrl, port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -899,9 +899,40 @@ func newWorkspaceModel(workspaces []struct {
 	return workspaceModel{list: l}
 }
 
+// Get current repository name
+
+func getRepoName() (string, error) {
+	// Try to get the remote URL
+	remoteURL, err := exec.Command("git", "config", "--get", "remote.origin.url").Output()
+	if err == nil && len(remoteURL) > 0 {
+		// Extract repo name from remote URL
+		return extractRepoNameFromURL(string(remoteURL)), nil
+	}
+
+	// If no remote, get the current directory name
+	dir, err := filepath.Abs(".")
+	if err != nil {
+		return "", err
+	}
+	return filepath.Base(dir), nil
+}
+
+func extractRepoNameFromURL(url string) string {
+	// Remove newline and trailing .git if present
+	url = strings.TrimSpace(url)
+	url = strings.TrimSuffix(url, ".git")
+
+	// Split the URL and get the last part
+	parts := strings.Split(url, "/")
+	return parts[len(parts)-1]
+}
+
 func getRepos(token string, workspaceId string) (string, error) {
-	fmt.Println("Fetching available repos...")
 	endpointURL := fmt.Sprintf("%s/cli/space-repositories", siteUrl)
+	currentRepoName, err := getRepoName()
+	if err != nil {
+		return "", fmt.Errorf("error getting the current repo name: %v", err)
+	}
 
 	// Create the request body
 	postData := struct {
@@ -937,9 +968,20 @@ func getRepos(token string, workspaceId string) (string, error) {
 		return "", fmt.Errorf("error decoding response: %v", err)
 	}
 
-	selectedRepo := "test"
+	for _, repo := range repos {
+		if repo.RepoName == currentRepoName {
+			fmt.Println(currentRepoName)
+			return currentRepoName, nil
+		}
+	}
+
+
 
 	return selectedRepo, nil
+}
+
+func createRepo(token: string, workspaceId string) (string, error) {
+
 }
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoId string, update bool) error {
@@ -1027,7 +1069,7 @@ func linkCommand() {
 
 	workspaceId, err := getWorkspaces(token)
 	repoId, err := getRepos(token, workspaceId)
-	fmt.Printf(repoId)
+
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
@@ -1044,6 +1086,7 @@ func linkCommand() {
 
 func logoutCommand() {
 	token, tokenErr := loadToken()
+	fmt.Printf(token)
 
 	if tokenErr != nil {
 		fmt.Printf("Error loading token: %v\n", tokenErr)
