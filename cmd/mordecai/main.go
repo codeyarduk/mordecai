@@ -21,7 +21,7 @@ import (
 )
 
 const siteUrl string = "https://api.devwilson.dev"
-const version string = "v0.0.11"
+const version string = "v0.0.12"
 const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 
 //                          _                _
@@ -458,10 +458,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	return "Open browser for authentication? (y/n): "
+	return fmt.Sprintf("Open url: **%s** to authenticate? (y/n): ", m.url)
 }
 
 func openBrowser(url string) error {
+
 	p := tea.NewProgram(model{url: url})
 	m, err := p.Run()
 	if err != nil {
