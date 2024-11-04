@@ -604,7 +604,7 @@ func deleteToken() error {
 
 // FIX THE MEMORY LEAKS
 
-func watchDirectory(directoryPath, workspaceId, token string) error {
+func watchDirectory(directoryPath, workspaceId, repoId, token string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("error creating watcher: %v", err)
@@ -699,7 +699,7 @@ func watchDirectory(directoryPath, workspaceId, token string) error {
 				}
 
 				timeoutTimer = time.AfterFunc(5*time.Second, func() {
-					processUpdatedFiles(filesToUpdate, token, workspaceId)
+					processUpdatedFiles(filesToUpdate, token, workspaceId, repoId)
 					filesToUpdate = make([]FileContent, 0)
 				})
 			}
@@ -735,9 +735,9 @@ func isInIgnoredDir(filePath string, ignoreDirs []string) bool {
 
 // Helper function to check if a slice contains a string
 
-func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string) {
+func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string, repoId string) {
 
-	sendDataToServer(filesToUpdate, token, workspaceId, true)
+	sendDataToServer(filesToUpdate, token, workspaceId, repoId, true)
 
 }
 
@@ -753,42 +753,42 @@ func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string)
 //       |_|
 //
 
-func getRepos(token string) (string, error) {
-	endpointURL := fmt.Sprintf("%s/cli/space-repository", siteUrl)
-
-	// Create the request body
-	postData := struct {
-		Token string `json:"token"`
-	}{
-		Token: token,
-	}
-
-	// Marshal the postData into JSON
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling JSON: %v", err)
-	}
-
-	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-	}
-
-	// Read and parse the response body
-	var repo []struct {
-		RepoID   string `json:"repoId"`
-		RepoName string `json:"repoName"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
-		return "", fmt.Errorf("error decoding response: %v", err)
-	}
-	return "Linked", err
-}
+// func getRepos(token string) (string, error) {
+// 	endpointURL := fmt.Sprintf("%s/cli/space-repository", siteUrl)
+//
+// 	// Create the request body
+// 	postData := struct {
+// 		Token string `json:"token"`
+// 	}{
+// 		Token: token,
+// 	}
+//
+// 	// Marshal the postData into JSON
+// 	jsonData, err := json.Marshal(postData)
+// 	if err != nil {
+// 		return "", fmt.Errorf("error marshaling JSON: %v", err)
+// 	}
+//
+// 	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
+// 	if err != nil {
+// 		return "", fmt.Errorf("error sending request: %v", err)
+// 	}
+// 	defer resp.Body.Close()
+//
+// 	if resp.StatusCode != http.StatusOK {
+// 		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+// 	}
+//
+// 	// Read and parse the response body
+// 	var repo []struct {
+// 		RepoID   string `json:"repoId"`
+// 		RepoName string `json:"repoName"`
+// 	}
+// 	if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
+// 		return "", fmt.Errorf("error decoding response: %v", err)
+// 	}
+// 	return "Linked", err
+// }
 
 func getWorkspaces(token string) (string, error) {
 	fmt.Println("Fetching available workspaces...")
@@ -846,18 +846,6 @@ func getWorkspaces(token string) (string, error) {
 	// Clear the screen again
 	fmt.Print("\033[2J")
 	fmt.Print("\033[H")
-
-	// Display the syncing message
-	fmt.Println("\n┌─────────────────────────────────────────────────────┐")
-	for _, w := range workspaces {
-		if w.WorkspaceID == selectedWorkspace {
-			fmt.Printf("│ \033[1;32m✓ Syncing to remote workspace: %s\033[0m\n", w.WorkspaceName)
-			fmt.Println("│")
-			fmt.Println("│ \033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
-			break
-		}
-	}
-	fmt.Println("└─────────────────────────────────────────────────────┘")
 
 	return selectedWorkspace, nil
 }
@@ -938,7 +926,7 @@ func newWorkspaceModel(workspaces []struct {
 		Foreground(lipgloss.Color("#7D56F4"))
 
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "Select a Workspace"
+	l.Title = "Select a Space"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.Styles.Title = titleStyle
@@ -948,18 +936,165 @@ func newWorkspaceModel(workspaces []struct {
 	return workspaceModel{list: l}
 }
 
-func sendDataToServer(files []FileContent, token string, workspaceId string, update bool) error {
+// Get REPOS
+
+func getRepos(token string, workspaceId string) (string, error) {
+	fmt.Println("Fetching available repos...")
+	endpointURL := fmt.Sprintf("%s/cli/space-repositories", siteUrl)
+
+	// Create the request body
+	postData := struct {
+		Token       string `json:"token"`
+		WorkspaceId string `json:"spaceId"`
+	}{
+		Token:       token,
+		WorkspaceId: workspaceId,
+	}
+
+	// Marshal the postData into JSON
+	jsonData, err := json.Marshal(postData)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling JSON: %v", err)
+	}
+
+	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+	}
+
+	// Read and parse the response body
+	var repos []struct {
+		RepoID   string `json:"repoId"`
+		RepoName string `json:"repoName"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
+		return "", fmt.Errorf("error decoding response: %v", err)
+	}
+
+	// Clear the screen and move cursor to top before showing workspace selection
+	fmt.Print("\033[2J")
+	fmt.Print("\033[H")
+
+	// Create a new workspace model with the enhanced styling
+	m := newRepoModel(repos)
+
+	// Run the Bubble Tea program
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	selectedModel, err := p.Run()
+	if err != nil {
+		return "", fmt.Errorf("error running workspace selection: %v", err)
+	}
+
+	// Get the selected workspace
+	selectedRepo := selectedModel.(repoModel).selected
+
+	// Clear the screen again
+	fmt.Print("\033[2J")
+	fmt.Print("\033[H")
+
+	// Display the syncing message
+	fmt.Println("\n┌─────────────────────────────────────────────────────┐")
+	for _, w := range repos {
+		if w.RepoID == selectedRepo {
+			fmt.Printf("│ \033[1;32m✓ Syncing to remote repo: %s\033[0m\n", w.RepoName)
+			fmt.Println("│")
+			fmt.Println("│ \033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
+			break
+		}
+	}
+	fmt.Println("└─────────────────────────────────────────────────────┘")
+
+	return selectedRepo, nil
+}
+
+// DUPLICATED TYPE
+type repo struct {
+	id   string
+	name string
+}
+
+func (w repo) Title() string       { return w.name }
+func (w repo) Description() string { return "" } // Return an empty string
+func (w repo) FilterValue() string { return w.name }
+
+type repoModel struct {
+	list     list.Model
+	selected string
+}
+
+func (m repoModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m repoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "enter" {
+			i, ok := m.list.SelectedItem().(repo)
+			if ok {
+				m.selected = i.id
+				return m, tea.Quit
+			}
+		}
+	case tea.WindowSizeMsg:
+		h, v := docStyle.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v)
+	}
+
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
+}
+
+func (m repoModel) View() string {
+	return docStyle.Render(m.list.View())
+}
+
+func newRepoModel(repos []struct {
+	RepoID   string `json:"repoId"`
+	RepoName string `json:"repoName"`
+}) repoModel {
+	items := make([]list.Item, len(repos))
+	for i, w := range repos {
+		items[i] = repo{id: w.RepoID, name: w.RepoName}
+	}
+
+	delegate := list.NewDefaultDelegate()
+	delegate.ShowDescription = false // Hide the description
+	delegate.Styles.NormalTitle = itemStyle
+	delegate.Styles.SelectedTitle = selectedItemStyle.Inline(true).
+		Foreground(lipgloss.Color("#7D56F4"))
+
+	l := list.New(items, delegate, 0, 0)
+	l.Title = "Select a Repository"
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.Styles.Title = titleStyle
+	l.Styles.PaginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	l.Styles.HelpStyle = list.DefaultStyles().HelpStyle.PaddingLeft(4)
+
+	return repoModel{list: l}
+}
+
+func sendDataToServer(files []FileContent, token string, workspaceId string, repoId string, update bool) error {
 
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
 
 	postData := struct {
 		Files       []FileContent `json:"files"`
 		Token       string        `json:"token"`
+		RepoId      string        `json:"repoId,omitempty"`
 		WorkspaceId string        `json:"spaceId,omitempty"`
 		Update      bool          `json:"update"`
 	}{
 		Files:       files,
 		Token:       token,
+		RepoId:      repoId,
 		WorkspaceId: workspaceId, // Use the workspaceID you obtained earlier
 		Update:      update,
 	}
@@ -1030,13 +1165,15 @@ func linkCommand() {
 	}
 
 	workspaceId, err := getWorkspaces(token)
+	repoId, err := getRepos(token, workspaceId)
+	fmt.Printf(repoId)
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
 	}
 
-	sendDataToServer(dirContent, token, workspaceId, false)
-	err = watchDirectory(currentDir, workspaceId, token)
+	sendDataToServer(dirContent, token, workspaceId, repoId, false)
+	err = watchDirectory(currentDir, workspaceId, repoId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
 		return
