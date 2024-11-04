@@ -753,43 +753,6 @@ func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string,
 //       |_|
 //
 
-// func getRepos(token string) (string, error) {
-// 	endpointURL := fmt.Sprintf("%s/cli/space-repository", siteUrl)
-//
-// 	// Create the request body
-// 	postData := struct {
-// 		Token string `json:"token"`
-// 	}{
-// 		Token: token,
-// 	}
-//
-// 	// Marshal the postData into JSON
-// 	jsonData, err := json.Marshal(postData)
-// 	if err != nil {
-// 		return "", fmt.Errorf("error marshaling JSON: %v", err)
-// 	}
-//
-// 	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-// 	if err != nil {
-// 		return "", fmt.Errorf("error sending request: %v", err)
-// 	}
-// 	defer resp.Body.Close()
-//
-// 	if resp.StatusCode != http.StatusOK {
-// 		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-// 	}
-//
-// 	// Read and parse the response body
-// 	var repo []struct {
-// 		RepoID   string `json:"repoId"`
-// 		RepoName string `json:"repoName"`
-// 	}
-// 	if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
-// 		return "", fmt.Errorf("error decoding response: %v", err)
-// 	}
-// 	return "Linked", err
-// }
-
 func getWorkspaces(token string) (string, error) {
 	fmt.Println("Fetching available workspaces...")
 	endpointURL := fmt.Sprintf("%s/cli/spaces", siteUrl)
