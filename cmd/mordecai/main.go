@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const siteUrl string = "https://api.rabbitcode.dev"
+const siteUrl string = "https://api.devwilson.dev"
 const version string = "v0.0.9"
 const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 
@@ -753,9 +753,46 @@ func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string)
 //       |_|
 //
 
+func getRepos(token string) (string, error) {
+	endpointURL := fmt.Sprintf("%s/cli/space-repository", siteUrl)
+
+	// Create the request body
+	postData := struct {
+		Token string `json:"token"`
+	}{
+		Token: token,
+	}
+
+	// Marshal the postData into JSON
+	jsonData, err := json.Marshal(postData)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling JSON: %v", err)
+	}
+
+	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+	}
+
+	// Read and parse the response body
+	var repo []struct {
+		RepoID   string `json:"repoId"`
+		RepoName string `json:"repoName"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&repo); err != nil {
+		return "", fmt.Errorf("error decoding response: %v", err)
+	}
+	return "Linked", err
+}
+
 func getWorkspaces(token string) (string, error) {
 	fmt.Println("Fetching available workspaces...")
-	endpointURL := fmt.Sprintf("%s/cli/workspaces", siteUrl)
+	endpointURL := fmt.Sprintf("%s/cli/spaces", siteUrl)
 
 	// Create the request body
 	postData := struct {
@@ -782,8 +819,8 @@ func getWorkspaces(token string) (string, error) {
 
 	// Read and parse the response body
 	var workspaces []struct {
-		WorkspaceID   string `json:"workspaceId"`
-		WorkspaceName string `json:"workspaceName"`
+		WorkspaceID   string `json:"spaceId"`
+		WorkspaceName string `json:"spaceName"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&workspaces); err != nil {
 		return "", fmt.Errorf("error decoding response: %v", err)
@@ -886,8 +923,8 @@ func (m workspaceModel) View() string {
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 func newWorkspaceModel(workspaces []struct {
-	WorkspaceID   string `json:"workspaceId"`
-	WorkspaceName string `json:"workspaceName"`
+	WorkspaceID   string `json:"spaceId"`
+	WorkspaceName string `json:"spaceName"`
 }) workspaceModel {
 	items := make([]list.Item, len(workspaces))
 	for i, w := range workspaces {
@@ -918,7 +955,7 @@ func sendDataToServer(files []FileContent, token string, workspaceId string, upd
 	postData := struct {
 		Files       []FileContent `json:"files"`
 		Token       string        `json:"token"`
-		WorkspaceId string        `json:"workspaceId,omitempty"`
+		WorkspaceId string        `json:"spaceId,omitempty"`
 		Update      bool          `json:"update"`
 	}{
 		Files:       files,
