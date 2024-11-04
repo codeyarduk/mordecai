@@ -901,6 +901,71 @@ func newWorkspaceModel(workspaces []struct {
 
 // Get REPOS
 
+func getRepoName() (string, error) {
+	// Try to get the remote URL
+	remoteURL, err := exec.Command("git", "config", "--get", "remote.origin.url").Output()
+	if err == nil && len(remoteURL) > 0 {
+		// Extract repo name from remote URL
+		return extractRepoNameFromURL(string(remoteURL)), nil
+	}
+
+	// If no remote, get the current directory name
+	dir, err := filepath.Abs(".")
+	if err != nil {
+		return "", err
+	}
+	return filepath.Base(dir), nil
+}
+
+func extractRepoNameFromURL(url string) string {
+	// Remove newline and trailing .git if present
+	url = strings.TrimSpace(url)
+	url = strings.TrimSuffix(url, ".git")
+
+	// Split the URL and get the last part
+	parts := strings.Split(url, "/")
+	return parts[len(parts)-1]
+}
+
+func makeRepo(token string, workspaceId string) (string, error) {
+	fmt.Println(token, workspaceId)
+	endpointURL := fmt.Sprintf("%s/cli/create-space-repository", siteUrl)
+
+	repoName, repoError := getRepoName()
+	// fmt.Println(repoName, repoError)
+	if repoError != nil {
+		return "", repoError
+	}
+
+	// Create the request body
+	postData := struct {
+		Token       string `json:"token"`
+		WorkspaceId string `json:"spaceId"`
+		RepoName    string `json:"repoName"`
+	}{
+		Token:       token,
+		WorkspaceId: workspaceId,
+		RepoName:    repoName,
+	}
+
+	// Marshal the postData into JSON
+	jsonData, err := json.Marshal(postData)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling JSON: %v", err)
+	}
+
+	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+	}
+	return "success", err
+}
+
 func getRepos(token string, workspaceId string) (string, error) {
 	fmt.Println("Fetching available repos...")
 	endpointURL := fmt.Sprintf("%s/cli/space-repositories", siteUrl)
@@ -932,29 +997,48 @@ func getRepos(token string, workspaceId string) (string, error) {
 
 	// Read and parse the response body
 	var repos []struct {
-		RepoID   string `json:"repoId"`
-		RepoName string `json:"repoName"`
+		RepoID   string `json:"contextId"`
+		RepoName string `json:"contextName"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
 		return "", fmt.Errorf("error decoding response: %v", err)
 	}
 
-	// Clear the screen and move cursor to top before showing workspace selection
+	// Clear the screen and move cursor to top
 	fmt.Print("\033[2J")
 	fmt.Print("\033[H")
 
-	// Create a new workspace model with the enhanced styling
+	if len(repos) == 0 {
+		fmt.Println("No repositories found. Creating a new one...")
+		makeRepo(token, workspaceId)
+	}
+
+	// Add "Create new repo" option
+	repos = append(repos, struct {
+		RepoID   string `json:"contextId"`
+		RepoName string `json:"contextName"`
+	}{
+		RepoID:   "new",
+		RepoName: "Create Context For A New Repo",
+	})
+
+	// Create a new repo model with the enhanced styling
 	m := newRepoModel(repos)
 
 	// Run the Bubble Tea program
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	selectedModel, err := p.Run()
 	if err != nil {
-		return "", fmt.Errorf("error running workspace selection: %v", err)
+		return "", fmt.Errorf("error running repo selection: %v", err)
 	}
 
-	// Get the selected workspace
+	// Get the selected repo
 	selectedRepo := selectedModel.(repoModel).selected
+
+	if selectedRepo == "new" {
+		// User chose to create a new repo
+		return makeRepo(token, workspaceId)
+	}
 
 	// Clear the screen again
 	fmt.Print("\033[2J")
@@ -962,9 +1046,9 @@ func getRepos(token string, workspaceId string) (string, error) {
 
 	// Display the syncing message
 	fmt.Println("\n┌─────────────────────────────────────────────────────┐")
-	for _, w := range repos {
-		if w.RepoID == selectedRepo {
-			fmt.Printf("│ \033[1;32m✓ Syncing to remote repo: %s\033[0m\n", w.RepoName)
+	for _, r := range repos {
+		if r.RepoID == selectedRepo {
+			fmt.Printf("│ \033[1;32m✓ Syncing to remote repo: %s\033[0m\n", r.RepoName)
 			fmt.Println("│")
 			fmt.Println("│ \033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 			break
@@ -1019,8 +1103,8 @@ func (m repoModel) View() string {
 }
 
 func newRepoModel(repos []struct {
-	RepoID   string `json:"repoId"`
-	RepoName string `json:"repoName"`
+	RepoID   string `json:"contextId"`
+	RepoName string `json:"contextName"`
 }) repoModel {
 	items := make([]list.Item, len(repos))
 	for i, w := range repos {
