@@ -21,7 +21,7 @@ import (
 )
 
 const siteUrl string = "https://api.devwilson.dev"
-const version string = "v0.0.11"
+const version string = "v0.0.12"
 const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 
 //                          _                _
@@ -387,7 +387,7 @@ func contains(slice []string, item string) bool {
 //
 
 func authenticate() (string, error) {
-
+	authenticateUrl := "https://devwilson.dev"
 	token, err := loadToken()
 
 	if err != nil {
@@ -396,13 +396,12 @@ func authenticate() (string, error) {
 
 	if len(token) > 0 {
 		// Remove this line
-		fmt.Println("You're already signed in HURRAYYYY")
 		// This is where you will ping the workspaces to see if the token is valid
 	}
 
 	// This needs to keep retrying if the port is in use
 	port := 8300
-	authURL := fmt.Sprintf("%s/auth/cli?port=%d", siteUrl, port)
+	authURL := fmt.Sprintf("%s/auth/cli?port=%d", authenticateUrl, port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -458,10 +457,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	return "Open browser for authentication? (y/n): "
+	return fmt.Sprintf("Open url: **%s** to authenticate? (y/n): ", m.url)
 }
 
 func openBrowser(url string) error {
+
 	p := tea.NewProgram(model{url: url})
 	m, err := p.Run()
 	if err != nil {
@@ -899,7 +899,7 @@ func newWorkspaceModel(workspaces []struct {
 	return workspaceModel{list: l}
 }
 
-// Get REPOS
+// Get current repository name
 
 func getRepoName() (string, error) {
 	// Try to get the remote URL
@@ -927,48 +927,13 @@ func extractRepoNameFromURL(url string) string {
 	return parts[len(parts)-1]
 }
 
-func makeRepo(token string, workspaceId string) (string, error) {
-	fmt.Println(token, workspaceId)
-	endpointURL := fmt.Sprintf("%s/cli/create-space-repository", siteUrl)
-
-	repoName, repoError := getRepoName()
-	// fmt.Println(repoName, repoError)
-	if repoError != nil {
-		return "", repoError
-	}
-
-	// Create the request body
-	postData := struct {
-		Token       string `json:"token"`
-		WorkspaceId string `json:"spaceId"`
-		RepoName    string `json:"repoName"`
-	}{
-		Token:       token,
-		WorkspaceId: workspaceId,
-		RepoName:    repoName,
-	}
-
-	// Marshal the postData into JSON
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling JSON: %v", err)
-	}
-
-	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-	}
-	return "success", err
-}
-
-func getRepos(token string, workspaceId string) (string, error) {
-	fmt.Println("Fetching available repos...")
+func linkRepo(token string, workspaceId string) (string, error) {
 	endpointURL := fmt.Sprintf("%s/cli/space-repositories", siteUrl)
+	currentRepoName, err := getRepoName()
+
+	if err != nil {
+		return "", fmt.Errorf("error getting the current repo name: %v", err)
+	}
 
 	// Create the request body
 	postData := struct {
@@ -1004,128 +969,54 @@ func getRepos(token string, workspaceId string) (string, error) {
 		return "", fmt.Errorf("error decoding response: %v", err)
 	}
 
-	// Clear the screen and move cursor to top
-	fmt.Print("\033[2J")
-	fmt.Print("\033[H")
-
-	if len(repos) == 0 {
-		fmt.Println("No repositories found. Creating a new one...")
-		makeRepo(token, workspaceId)
-	}
-
-	// Add "Create new repo" option
-	repos = append(repos, struct {
-		RepoID   string `json:"contextId"`
-		RepoName string `json:"contextName"`
-	}{
-		RepoID:   "new",
-		RepoName: "Create Context For A New Repo",
-	})
-
-	// Create a new repo model with the enhanced styling
-	m := newRepoModel(repos)
-
-	// Run the Bubble Tea program
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	selectedModel, err := p.Run()
-	if err != nil {
-		return "", fmt.Errorf("error running repo selection: %v", err)
-	}
-
-	// Get the selected repo
-	selectedRepo := selectedModel.(repoModel).selected
-
-	if selectedRepo == "new" {
-		// User chose to create a new repo
-		return makeRepo(token, workspaceId)
-	}
-
-	// Clear the screen again
-	fmt.Print("\033[2J")
-	fmt.Print("\033[H")
-
-	// Display the syncing message
-	fmt.Println("\n┌─────────────────────────────────────────────────────┐")
-	for _, r := range repos {
-		if r.RepoID == selectedRepo {
-			fmt.Printf("│ \033[1;32m✓ Syncing to remote repo: %s\033[0m\n", r.RepoName)
-			fmt.Println("│")
-			fmt.Println("│ \033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
-			break
+	// Checks if current repo has been previously linked
+	for _, repo := range repos {
+		if repo.RepoName == currentRepoName {
+			fmt.Println(currentRepoName)
+			return currentRepoName, nil
 		}
 	}
-	fmt.Println("└─────────────────────────────────────────────────────┘")
+
+	// Creates new repo context instance
+	selectedRepo, err := createRepo(token, workspaceId)
 
 	return selectedRepo, nil
 }
 
-// DUPLICATED TYPE
-type repo struct {
-	id   string
-	name string
-}
+func createRepo(token string, workspaceId string) (string, error) {
+	endpointURL := fmt.Sprintf("%s/cli/create-space-repository", siteUrl)
+	currentRepoName, err := getRepoName()
 
-func (w repo) Title() string       { return w.name }
-func (w repo) Description() string { return "" } // Return an empty string
-func (w repo) FilterValue() string { return w.name }
-
-type repoModel struct {
-	list     list.Model
-	selected string
-}
-
-func (m repoModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m repoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.String() == "enter" {
-			i, ok := m.list.SelectedItem().(repo)
-			if ok {
-				m.selected = i.id
-				return m, tea.Quit
-			}
-		}
-	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
+	if err != nil {
+		return "", fmt.Errorf("error getting the current repo name: %v", err)
 	}
 
-	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
-}
-
-func (m repoModel) View() string {
-	return docStyle.Render(m.list.View())
-}
-
-func newRepoModel(repos []struct {
-	RepoID   string `json:"contextId"`
-	RepoName string `json:"contextName"`
-}) repoModel {
-	items := make([]list.Item, len(repos))
-	for i, w := range repos {
-		items[i] = repo{id: w.RepoID, name: w.RepoName}
+	// Create the request body
+	postData := struct {
+		Token       string `json:"token"`
+		WorkspaceId string `json:"spaceId"`
+	}{
+		Token:       token,
+		WorkspaceId: workspaceId,
 	}
 
-	delegate := list.NewDefaultDelegate()
-	delegate.ShowDescription = false // Hide the description
-	delegate.Styles.NormalTitle = itemStyle
-	delegate.Styles.SelectedTitle = selectedItemStyle.Inline(true).
-		Foreground(lipgloss.Color("#7D56F4"))
+	// Marshal the postData into JSON
+	jsonData, err := json.Marshal(postData)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling JSON: %v", err)
+	}
 
-	l := list.New(items, delegate, 0, 0)
-	l.Title = "Select a Repository"
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
-	l.Styles.Title = titleStyle
-	l.Styles.PaginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	l.Styles.HelpStyle = list.DefaultStyles().HelpStyle.PaddingLeft(4)
+	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
 
-	return repoModel{list: l}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+	}
+
+	return fmt.Sprintf(currentRepoName), nil
 }
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoId string, update bool) error {
@@ -1212,8 +1103,8 @@ func linkCommand() {
 	}
 
 	workspaceId, err := getWorkspaces(token)
-	repoId, err := getRepos(token, workspaceId)
-	fmt.Printf(repoId)
+	repoId, err := linkRepo(token, workspaceId)
+
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
@@ -1230,6 +1121,7 @@ func linkCommand() {
 
 func logoutCommand() {
 	token, tokenErr := loadToken()
+	fmt.Printf(token)
 
 	if tokenErr != nil {
 		fmt.Printf("Error loading token: %v\n", tokenErr)
