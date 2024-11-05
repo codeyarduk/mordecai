@@ -401,7 +401,7 @@ func authenticate() (string, error) {
 
 	// This needs to keep retrying if the port is in use
 	port := 8300
-	authURL := fmt.Sprintf("%s/auth/cli?port=%d", authenticateUrl, port)
+	authURL := fmt.Sprintf("%s/cli?port=%d", authenticateUrl, port)
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -604,7 +604,7 @@ func deleteToken() error {
 
 // FIX THE MEMORY LEAKS
 
-func watchDirectory(directoryPath, workspaceId, repoId, token string) error {
+func watchDirectory(directoryPath, workspaceId, repoId, repoName, token string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("error creating watcher: %v", err)
@@ -699,7 +699,7 @@ func watchDirectory(directoryPath, workspaceId, repoId, token string) error {
 				}
 
 				timeoutTimer = time.AfterFunc(5*time.Second, func() {
-					processUpdatedFiles(filesToUpdate, token, workspaceId, repoId)
+					processUpdatedFiles(filesToUpdate, token, workspaceId, repoId, repoName)
 					filesToUpdate = make([]FileContent, 0)
 				})
 			}
@@ -735,9 +735,9 @@ func isInIgnoredDir(filePath string, ignoreDirs []string) bool {
 
 // Helper function to check if a slice contains a string
 
-func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string, repoId string) {
+func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string, repoId string, repoName string) {
 
-	sendDataToServer(filesToUpdate, token, workspaceId, repoId, true)
+	sendDataToServer(filesToUpdate, token, workspaceId, repoId, repoName, true)
 
 }
 
@@ -927,12 +927,12 @@ func extractRepoNameFromURL(url string) string {
 	return parts[len(parts)-1]
 }
 
-func linkRepo(token string, workspaceId string) (string, error) {
+func linkRepo(token string, workspaceId string) (string, string, error) {
 	endpointURL := fmt.Sprintf("%s/cli/space-repositories", siteUrl)
 	currentRepoName, err := getRepoName()
 
 	if err != nil {
-		return "", fmt.Errorf("error getting the current repo name: %v", err)
+		return "", "", fmt.Errorf("error getting the current repo name: %v", err)
 	}
 
 	// Create the request body
@@ -947,17 +947,17 @@ func linkRepo(token string, workspaceId string) (string, error) {
 	// Marshal the postData into JSON
 	jsonData, err := json.Marshal(postData)
 	if err != nil {
-		return "", fmt.Errorf("error marshaling JSON: %v", err)
+		return "", "", fmt.Errorf("error marshaling JSON: %v", err)
 	}
 
 	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", fmt.Errorf("error sending request: %v", err)
+		return "", "", fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+		return "", "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
 	}
 
 	// Read and parse the response body
@@ -965,74 +965,40 @@ func linkRepo(token string, workspaceId string) (string, error) {
 		RepoID   string `json:"contextId"`
 		RepoName string `json:"contextName"`
 	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
-		return "", fmt.Errorf("error decoding response: %v", err)
+		return "", "", fmt.Errorf("error decoding response: %v", err)
 	}
 
 	// Checks if current repo has been previously linked
 	for _, repo := range repos {
 		if repo.RepoName == currentRepoName {
 			fmt.Println(currentRepoName)
-			return currentRepoName, nil
+			return currentRepoName, repo.RepoID, nil
 		}
 	}
 
-	// Creates new repo context instance
-	selectedRepo, err := createRepo(token, workspaceId)
+	selectedRepoName, selectedRepoId := currentRepoName, ""
 
-	return selectedRepo, nil
+	return selectedRepoName, selectedRepoId, nil
 }
 
-func createRepo(token string, workspaceId string) (string, error) {
-	endpointURL := fmt.Sprintf("%s/cli/create-space-repository", siteUrl)
-	currentRepoName, err := getRepoName()
-
-	if err != nil {
-		return "", fmt.Errorf("error getting the current repo name: %v", err)
-	}
-
-	// Create the request body
-	postData := struct {
-		Token       string `json:"token"`
-		WorkspaceId string `json:"spaceId"`
-	}{
-		Token:       token,
-		WorkspaceId: workspaceId,
-	}
-
-	// Marshal the postData into JSON
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling JSON: %v", err)
-	}
-
-	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-	}
-
-	return fmt.Sprintf(currentRepoName), nil
-}
-
-func sendDataToServer(files []FileContent, token string, workspaceId string, repoId string, update bool) error {
+func sendDataToServer(files []FileContent, token string, workspaceId string, repoId string, repoName string, update bool) error {
 
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
 
 	postData := struct {
 		Files       []FileContent `json:"files"`
 		Token       string        `json:"token"`
-		RepoId      string        `json:"repoId,omitempty"`
+		ContextId   string        `json:"contextId,omitempty"`
+		ContextName string        `json:"contextName"`
 		WorkspaceId string        `json:"spaceId,omitempty"`
 		Update      bool          `json:"update"`
 	}{
 		Files:       files,
 		Token:       token,
-		RepoId:      repoId,
+		ContextId:   repoId,
+		ContextName: repoName,
 		WorkspaceId: workspaceId, // Use the workspaceID you obtained earlier
 		Update:      update,
 	}
@@ -1103,15 +1069,15 @@ func linkCommand() {
 	}
 
 	workspaceId, err := getWorkspaces(token)
-	repoId, err := linkRepo(token, workspaceId)
+	repoName, repoId, err := linkRepo(token, workspaceId)
 
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
 	}
 
-	sendDataToServer(dirContent, token, workspaceId, repoId, false)
-	err = watchDirectory(currentDir, workspaceId, repoId, token)
+	sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
+	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
 		return
