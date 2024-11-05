@@ -927,9 +927,10 @@ func extractRepoNameFromURL(url string) string {
 	return parts[len(parts)-1]
 }
 
-func getRepos(token string, workspaceId string) (string, error) {
+func linkRepo(token string, workspaceId string) (string, error) {
 	endpointURL := fmt.Sprintf("%s/cli/space-repositories", siteUrl)
 	currentRepoName, err := getRepoName()
+
 	if err != nil {
 		return "", fmt.Errorf("error getting the current repo name: %v", err)
 	}
@@ -968,6 +969,7 @@ func getRepos(token string, workspaceId string) (string, error) {
 		return "", fmt.Errorf("error decoding response: %v", err)
 	}
 
+	// Checks if current repo has been previously linked
 	for _, repo := range repos {
 		if repo.RepoName == currentRepoName {
 			fmt.Println(currentRepoName)
@@ -975,13 +977,46 @@ func getRepos(token string, workspaceId string) (string, error) {
 		}
 	}
 
-
+	// Creates new repo context instance
+	selectedRepo, err := createRepo(token, workspaceId)
 
 	return selectedRepo, nil
 }
 
-func createRepo(token: string, workspaceId string) (string, error) {
+func createRepo(token string, workspaceId string) (string, error) {
+	endpointURL := fmt.Sprintf("%s/cli/create-space-repository", siteUrl)
+	currentRepoName, err := getRepoName()
 
+	if err != nil {
+		return "", fmt.Errorf("error getting the current repo name: %v", err)
+	}
+
+	// Create the request body
+	postData := struct {
+		Token       string `json:"token"`
+		WorkspaceId string `json:"spaceId"`
+	}{
+		Token:       token,
+		WorkspaceId: workspaceId,
+	}
+
+	// Marshal the postData into JSON
+	jsonData, err := json.Marshal(postData)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling JSON: %v", err)
+	}
+
+	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+	}
+
+	return fmt.Sprintf(currentRepoName), nil
 }
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoId string, update bool) error {
@@ -1068,7 +1103,7 @@ func linkCommand() {
 	}
 
 	workspaceId, err := getWorkspaces(token)
-	repoId, err := getRepos(token, workspaceId)
+	repoId, err := linkRepo(token, workspaceId)
 
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
