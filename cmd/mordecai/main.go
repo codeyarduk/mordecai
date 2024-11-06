@@ -22,7 +22,7 @@ import (
 
 const (
 	siteUrl   = "https://api.devwilson.dev"
-	version   = "v0.0.12"
+	version   = "v0.0.13"
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
 
