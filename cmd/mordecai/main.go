@@ -20,9 +20,17 @@ import (
 	"time"
 )
 
-const siteUrl string = "https://api.devwilson.dev"
-const version string = "v0.0.12"
-const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
+const (
+	siteUrl   = "https://api.devwilson.dev"
+	version   = "v0.0.12"
+	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
+)
+
+var supportedFileTypes = []string{
+	".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml",
+	".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb",
+	".zig", ".php",
+}
 
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
@@ -261,8 +269,6 @@ func readDir(dirPath string) ([]string, error) {
 		}
 	}
 
-	allowedExtensions := []string{".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml", ".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb", ".zig", ".php", ".ts", ".js", ".mts", ".mjs", ".cts", ".cjs"}
-
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -299,7 +305,7 @@ func readDir(dirPath string) ([]string, error) {
 		if !info.IsDir() {
 			// Check if the file extension is in the allowed list
 			ext := filepath.Ext(path)
-			for _, allowedExt := range allowedExtensions {
+			for _, allowedExt := range supportedFileTypes {
 				if ext == allowedExt {
 					files = append(files, path)
 					break
@@ -340,9 +346,8 @@ func getFileContents(files []string) ([]FileContent, error) {
 		ext := filepath.Ext(filePath)
 
 		// Check if it's an allowed file type (you can modify this list as needed)
-		allowedExtensions := []string{".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml", ".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb", ".zig", ".php", ".ts", ".js", ".mts", ".mjs", ".cts", ".cjs"}
 
-		if !contains(allowedExtensions, ext) {
+		if !contains(supportedFileTypes, ext) {
 			continue
 		}
 
