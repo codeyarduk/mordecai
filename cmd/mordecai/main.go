@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const siteUrl string = "https://api.devwilson.dev"
+const siteUrl string = "https://api.rabbitcode.dev"
 const version string = "v0.0.12"
 const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 
@@ -387,7 +387,7 @@ func contains(slice []string, item string) bool {
 //
 
 func authenticate() (string, error) {
-	authenticateUrl := "https://devwilson.dev"
+	authenticateUrl := "https://rabbitcode.dev"
 	token, err := loadToken()
 
 	if err != nil {
@@ -983,10 +983,12 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 	return selectedRepoName, selectedRepoId, nil
 }
 
-func sendDataToServer(files []FileContent, token string, workspaceId string, repoId string, repoName string, update bool) error {
+func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) error {
 
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
+	fmt.Printf("repoId:%s", repoId)
 
+	fmt.Printf("repoName:%s", repoName)
 	postData := struct {
 		Files       []FileContent `json:"files"`
 		Token       string        `json:"token"`
