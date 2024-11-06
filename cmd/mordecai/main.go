@@ -810,6 +810,8 @@ func getWorkspaces(token string) (string, error) {
 	fmt.Print("\033[2J")
 	fmt.Print("\033[H")
 
+	// Display the syncing message
+
 	return selectedWorkspace, nil
 }
 
@@ -986,9 +988,7 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) error {
 
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
-	fmt.Printf("repoId:%s", repoId)
 
-	fmt.Printf("repoName:%s", repoName)
 	postData := struct {
 		Files       []FileContent `json:"files"`
 		Token       string        `json:"token"`
@@ -1073,6 +1073,12 @@ func linkCommand() {
 	workspaceId, err := getWorkspaces(token)
 	repoName, repoId, err := linkRepo(token, workspaceId)
 
+	fmt.Println("\n┌─────────────────────────────────────────────────────┐")
+	fmt.Printf("│ \033[1;32m✓ Syncing local %s\n repository to remote space %s\033[0m\n", repoName, workspaceId)
+	fmt.Println("│")
+	fmt.Println("│ \033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
+	fmt.Println("└─────────────────────────────────────────────────────┘")
+
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
@@ -1089,7 +1095,6 @@ func linkCommand() {
 
 func logoutCommand() {
 	token, tokenErr := loadToken()
-	fmt.Printf(token)
 
 	if tokenErr != nil {
 		fmt.Printf("Error loading token: %v\n", tokenErr)
