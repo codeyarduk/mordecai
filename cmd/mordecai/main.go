@@ -503,10 +503,10 @@ func startLocalServer(callbackPort int) (string, error) {
 		token := parsedURL.Query().Get("token")
 		if token != "" {
 			saveToken(token)
-			w.Header().Set("Content-Type", "text/html")
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "<h1>Authentication successful! You can close this window.</h1>")
 			tokenChan <- token
+
+			// Immediate redirect
+			http.Redirect(w, r, "https://devwilson.dev/chat", http.StatusSeeOther)
 		} else {
 			errChan <- fmt.Errorf("no token received")
 		}
@@ -980,7 +980,6 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 	// Checks if current repo has been previously linked
 	for _, repo := range repos {
 		if repo.RepoName == currentRepoName {
-			fmt.Println(currentRepoName)
 			return currentRepoName, repo.RepoID, nil
 		}
 	}
