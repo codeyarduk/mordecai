@@ -619,9 +619,6 @@ func watchDirectory(directoryPath, workspaceId, repoId, repoName, token string) 
 	filesToUpdate := make([]FileContent, 0)
 	var timeoutTimer *time.Timer
 
-	// Define allowed file extensions
-	allowedExtensions := []string{".go", ".js", ".ts", ".py", ".html", ".css", ".json", ".rb", ".md"}
-
 	// Define directories to ignore
 	ignoreDirs := []string{"node_modules", "vendor", "dist", "build", ".git"}
 
@@ -655,7 +652,7 @@ func watchDirectory(directoryPath, workspaceId, repoId, repoName, token string) 
 				fileExtension := filepath.Ext(filePath)
 
 				// Check if the file extension is allowed
-				if !contains(allowedExtensions, fileExtension) {
+				if !contains(supportedFileTypes, fileExtension) {
 					continue
 				}
 
