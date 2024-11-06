@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const siteUrl string = "https://api.rabbitcode.dev"
+const siteUrl string = "https://api.devwilson.dev"
 const version string = "v0.0.12"
 const githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 
@@ -387,7 +387,7 @@ func contains(slice []string, item string) bool {
 //
 
 func authenticate() (string, error) {
-	authenticateUrl := "https://rabbitcode.dev"
+	authenticateUrl := "https://devwilson.dev"
 	token, err := loadToken()
 
 	if err != nil {
@@ -753,7 +753,7 @@ func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string,
 //       |_|
 //
 
-func getWorkspaces(token string) (string, error) {
+func getWorkspaces(token string) (string, string, error) {
 	fmt.Println("Fetching available workspaces...")
 	endpointURL := fmt.Sprintf("%s/cli/spaces", siteUrl)
 
@@ -767,17 +767,17 @@ func getWorkspaces(token string) (string, error) {
 	// Marshal the postData into JSON
 	jsonData, err := json.Marshal(postData)
 	if err != nil {
-		return "", fmt.Errorf("error marshaling JSON: %v", err)
+		return "", "", fmt.Errorf("error marshaling JSON: %v", err)
 	}
 
 	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", fmt.Errorf("error sending request: %v", err)
+		return "", "", fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
+		return "", "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
 	}
 
 	// Read and parse the response body
@@ -786,7 +786,7 @@ func getWorkspaces(token string) (string, error) {
 		WorkspaceName string `json:"spaceName"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&workspaces); err != nil {
-		return "", fmt.Errorf("error decoding response: %v", err)
+		return "", "", fmt.Errorf("error decoding response: %v", err)
 	}
 
 	// Clear the screen and move cursor to top before showing workspace selection
@@ -800,17 +800,20 @@ func getWorkspaces(token string) (string, error) {
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	selectedModel, err := p.Run()
 	if err != nil {
-		return "", fmt.Errorf("error running workspace selection: %v", err)
+		return "", "", fmt.Errorf("error running workspace selection: %v", err)
 	}
 
 	// Get the selected workspace
-	selectedWorkspace := selectedModel.(workspaceModel).selected
-
+	selectedWorkspace := selectedModel.(workspaceModel)
+	selectedId := selectedWorkspace.selectedId
+	selectedName := selectedWorkspace.selectedName
 	// Clear the screen again
 	fmt.Print("\033[2J")
 	fmt.Print("\033[H")
 
-	return selectedWorkspace, nil
+	// Display the syncing message
+
+	return selectedId, selectedName, nil
 }
 
 var (
@@ -839,8 +842,9 @@ func (w workspace) Description() string { return "" } // Return an empty string
 func (w workspace) FilterValue() string { return w.name }
 
 type workspaceModel struct {
-	list     list.Model
-	selected string
+	list         list.Model
+	selectedId   string
+	selectedName string
 }
 
 func (m workspaceModel) Init() tea.Cmd {
@@ -853,7 +857,8 @@ func (m workspaceModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "enter" {
 			i, ok := m.list.SelectedItem().(workspace)
 			if ok {
-				m.selected = i.id
+				m.selectedId = i.id
+				m.selectedName = i.name
 				return m, tea.Quit
 			}
 		}
@@ -986,9 +991,7 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) error {
 
 	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
-	fmt.Printf("repoId:%s", repoId)
 
-	fmt.Printf("repoName:%s", repoName)
 	postData := struct {
 		Files       []FileContent `json:"files"`
 		Token       string        `json:"token"`
@@ -1070,9 +1073,11 @@ func linkCommand() {
 		fmt.Println("Error getting token: %v\n", tokenErr)
 	}
 
-	workspaceId, err := getWorkspaces(token)
+	workspaceId, workspaceName, err := getWorkspaces(token)
 	repoName, repoId, err := linkRepo(token, workspaceId)
 
+	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
+	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
@@ -1089,7 +1094,6 @@ func linkCommand() {
 
 func logoutCommand() {
 	token, tokenErr := loadToken()
-	fmt.Printf(token)
 
 	if tokenErr != nil {
 		fmt.Printf("Error loading token: %v\n", tokenErr)
