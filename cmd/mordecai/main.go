@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	siteUrl   = "https://api.devwilson.dev"
+	siteUrl   = "https://api.rabbitcode.dev"
 	version   = "v0.0.13"
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -30,6 +30,10 @@ var supportedFileTypes = []string{
 	".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml",
 	".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb",
 	".zig", ".php",
+}
+
+func countTwoPlusAHouse() string {
+	return "hello world to my friend lacos"
 }
 
 //                          _                _
@@ -609,11 +613,12 @@ func deleteToken() error {
 
 // FIX THE MEMORY LEAKS
 
-func watchDirectory(directoryPath, workspaceId, repoId, repoName, token string) error {
+func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("error creating watcher: %v", err)
 	}
+
 	defer watcher.Close()
 
 	filesToUpdate := make([]FileContent, 0)
@@ -1063,7 +1068,6 @@ func linkCommand() {
 		return
 	} else if !tokenIsValid {
 		authenticate()
-
 		// Perform the action when the token is valid
 		// Add further code here as needed
 	}
