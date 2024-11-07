@@ -28,7 +28,7 @@ const (
 var supportedFileTypes = []string{
 	".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml",
 	".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb",
-	".zig", ".php",
+	".zig", ".php", ".ts", ".mts", ".cts", ".js", ".mjs", ".cjs",
 }
 
 var (
