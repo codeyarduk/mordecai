@@ -1067,7 +1067,6 @@ func linkCommand() {
 		return
 	} else if !tokenIsValid {
 		authenticate()
-		// Perform the action when the token is valid
 		// Add further code here as needed
 	}
 
