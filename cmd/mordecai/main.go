@@ -35,10 +35,6 @@ var (
 	siteUrl = "devwilson.dev"
 )
 
-func countTwoPlusAHouse() string {
-	return "hello world to my friend lacos"
-}
-
 //                          _                _
 //  _ __ ___   ___  _ __ __| | ___  ___ __ _(_)
 // | '_ ` _ \ / _ \| '__/ _` |/ _ \/ __/ _` | |
