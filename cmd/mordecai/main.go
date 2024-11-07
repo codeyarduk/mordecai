@@ -21,7 +21,6 @@ import (
 )
 
 const (
-	siteUrl   = "https://api.devwilson.dev"
 	version   = "v0.0.13"
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -30,6 +29,14 @@ var supportedFileTypes = []string{
 	".jsx", ".tsx", ".json", ".html", ".css", ".md", ".yml", ".yaml",
 	".scss", ".svelte", ".vue", ".py", ".go", ".c", ".rs", ".rb",
 	".zig", ".php",
+}
+
+var (
+	siteUrl = "devwilson.dev"
+)
+
+func countTwoPlusAHouse() string {
+	return "hello world to my friend lacos"
 }
 
 //                          _                _
@@ -392,7 +399,7 @@ func contains(slice []string, item string) bool {
 //
 
 func authenticate() (string, error) {
-	authenticateUrl := "https://devwilson.dev"
+	authenticateUrl := fmt.Sprintf("https://%s", siteUrl)
 	token, err := loadToken()
 
 	if err != nil {
@@ -492,7 +499,7 @@ func openBrowser(url string) error {
 func startLocalServer(callbackPort int) (string, error) {
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
-
+	redirectUrl := fmt.Sprintf("https://%s/chat", siteUrl)
 	http.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
 		parsedURL, err := url.Parse(r.URL.String())
 		if err != nil {
@@ -506,7 +513,7 @@ func startLocalServer(callbackPort int) (string, error) {
 			tokenChan <- token
 
 			// Immediate redirect
-			http.Redirect(w, r, "https://devwilson.dev/chat", http.StatusSeeOther)
+			http.Redirect(w, r, redirectUrl, http.StatusSeeOther)
 		} else {
 			errChan <- fmt.Errorf("no token received")
 		}
@@ -609,11 +616,12 @@ func deleteToken() error {
 
 // FIX THE MEMORY LEAKS
 
-func watchDirectory(directoryPath, workspaceId, repoId, repoName, token string) error {
+func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("error creating watcher: %v", err)
 	}
+
 	defer watcher.Close()
 
 	filesToUpdate := make([]FileContent, 0)
@@ -757,7 +765,7 @@ func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string,
 
 func getWorkspaces(token string) (string, string, error) {
 	fmt.Println("Fetching available workspaces...")
-	endpointURL := fmt.Sprintf("%s/cli/spaces", siteUrl)
+	endpointURL := fmt.Sprintf("https://api.%s/cli/spaces", siteUrl)
 
 	// Create the request body
 	postData := struct {
@@ -935,7 +943,7 @@ func extractRepoNameFromURL(url string) string {
 }
 
 func linkRepo(token string, workspaceId string) (string, string, error) {
-	endpointURL := fmt.Sprintf("%s/cli/space-repositories", siteUrl)
+	endpointURL := fmt.Sprintf("https://api.%s/cli/space-repositories", siteUrl)
 	currentRepoName, err := getRepoName()
 
 	if err != nil {
@@ -991,7 +999,7 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) error {
 
-	endpointURL := fmt.Sprintf("%s/cli/chunk", siteUrl)
+	endpointURL := fmt.Sprintf("https://api.%s/cli/chunk", siteUrl)
 
 	postData := struct {
 		Files       []FileContent `json:"files"`
@@ -1063,7 +1071,6 @@ func linkCommand() {
 		return
 	} else if !tokenIsValid {
 		authenticate()
-
 		// Perform the action when the token is valid
 		// Add further code here as needed
 	}
