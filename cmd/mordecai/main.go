@@ -5,10 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/fsnotify/fsnotify"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +14,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/fsnotify/fsnotify"
 )
 
 const (
@@ -32,7 +33,7 @@ var supportedFileTypes = []string{
 }
 
 var (
-	siteUrl = "rabbitcode.dev"
+	siteUrl = "devwilson.dev"
 )
 
 //                          _                _
@@ -716,6 +717,49 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 			fmt.Println("error:", err)
 		}
 	}
+}
+
+// Returns t
+func readGitignore(dirPath string) ([]string, error) {
+	gitignorePath := filepath.Join(dirPath, ".gitignore")
+	ignorePatterns := []string{".git", "node_modules", "package-lock.json"}
+
+	if _, err := os.Stat(gitignorePath); err == nil {
+		file, err := os.Open(gitignorePath)
+		if err != nil {
+			return nil, fmt.Errorf("error opening .gitignore: %v", err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			pattern := strings.TrimSpace(scanner.Text())
+			if pattern != "" && !strings.HasPrefix(pattern, "#") {
+				ignorePatterns = append(ignorePatterns, pattern)
+			}
+		}
+	}
+
+	return ignorePatterns, nil
+}
+
+func shouldIgnore(path string, ignorePatterns []string) bool {
+	for _, pattern := range ignorePatterns {
+		matched, err := filepath.Match(pattern, filepath.Base(path))
+		if err == nil && matched {
+			return true
+		}
+		if strings.HasPrefix(pattern, "/") {
+			if strings.HasPrefix(path, filepath.Clean(pattern)) {
+				return true
+			}
+		} else {
+			if strings.Contains(path, string(filepath.Separator)+pattern+string(filepath.Separator)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Helper function to check if a directory should be ignored
