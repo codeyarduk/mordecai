@@ -5,10 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/fsnotify/fsnotify"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +14,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/fsnotify/fsnotify"
 )
 
 const (
@@ -32,7 +33,7 @@ var supportedFileTypes = []string{
 }
 
 var (
-	siteUrl = "rabbitcode.dev"
+	siteUrl = "devwilson.dev"
 )
 
 //                          _                _
@@ -624,7 +625,10 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 	var timeoutTimer *time.Timer
 
 	// Define directories to ignore
-	ignoreDirs := []string{"node_modules", "vendor", "dist", "build", ".git"}
+	ignorePatterns, err := readGitignore(directoryPath)
+	if err != nil {
+		return fmt.Errorf("error reading .gitignore: %v", err)
+	}
 
 	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -632,7 +636,7 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 		}
 		if info.IsDir() {
 			// Check if the directory should be ignored
-			if containsDir(ignoreDirs, info.Name()) {
+			if shouldIgnore(path, ignorePatterns) {
 				return filepath.SkipDir
 			}
 
@@ -652,16 +656,15 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 				return fmt.Errorf("watcher channel closed")
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Chmod) != 0 {
+				// Check if file path must be ignored
 				filePath := event.Name
-				fileExtension := filepath.Ext(filePath)
-
-				// Check if the file extension is allowed
-				if !contains(supportedFileTypes, fileExtension) {
+				if shouldIgnore(filePath, ignorePatterns) {
 					continue
 				}
 
-				// Check if the file is in an ignored directory
-				if isInIgnoredDir(filePath, ignoreDirs) {
+				// Check if the file extension is allowed
+				fileExtension := filepath.Ext(filePath)
+				if !contains(supportedFileTypes, fileExtension) {
 					continue
 				}
 
@@ -690,7 +693,7 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 
 				// If a new directory is created, add it to the watcher
 				if info, err := os.Stat(filePath); err == nil && info.IsDir() {
-					if !containsDir(ignoreDirs, info.Name()) {
+					if !shouldIgnore(filePath, ignorePatterns) {
 						err = watcher.Add(filePath)
 						if err != nil {
 							fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
@@ -716,6 +719,48 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 			fmt.Println("error:", err)
 		}
 	}
+}
+
+func readGitignore(dirPath string) ([]string, error) {
+	gitignorePath := filepath.Join(dirPath, ".gitignore")
+	ignorePatterns := []string{".git", "node_modules", "package-lock.json"}
+
+	if _, err := os.Stat(gitignorePath); err == nil {
+		file, err := os.Open(gitignorePath)
+		if err != nil {
+			return nil, fmt.Errorf("error opening .gitignore: %v", err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			pattern := strings.TrimSpace(scanner.Text())
+			if pattern != "" && !strings.HasPrefix(pattern, "#") {
+				ignorePatterns = append(ignorePatterns, pattern)
+			}
+		}
+	}
+
+	return ignorePatterns, nil
+}
+
+func shouldIgnore(path string, ignorePatterns []string) bool {
+	for _, pattern := range ignorePatterns {
+		matched, err := filepath.Match(pattern, filepath.Base(path))
+		if err == nil && matched {
+			return true
+		}
+		if strings.HasPrefix(pattern, "/") {
+			if strings.HasPrefix(path, filepath.Clean(pattern)) {
+				return true
+			}
+		} else {
+			if strings.Contains(path, string(filepath.Separator)+pattern+string(filepath.Separator)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Helper function to check if a directory should be ignored
