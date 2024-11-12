@@ -625,7 +625,10 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 	var timeoutTimer *time.Timer
 
 	// Define directories to ignore
-	ignoreDirs := []string{"node_modules", "vendor", "dist", "build", ".git"}
+	ignorePatterns, err := readGitignore(directoryPath)
+	if err != nil {
+		return fmt.Errorf("error reading .gitignore: %v", err)
+	}
 
 	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -633,7 +636,7 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 		}
 		if info.IsDir() {
 			// Check if the directory should be ignored
-			if containsDir(ignoreDirs, info.Name()) {
+			if shouldIgnore(path, ignorePatterns) {
 				return filepath.SkipDir
 			}
 
@@ -653,16 +656,15 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 				return fmt.Errorf("watcher channel closed")
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Chmod) != 0 {
+				// Check if file path must be ignored
 				filePath := event.Name
-				fileExtension := filepath.Ext(filePath)
-
-				// Check if the file extension is allowed
-				if !contains(supportedFileTypes, fileExtension) {
+				if shouldIgnore(filePath, ignorePatterns) {
 					continue
 				}
 
-				// Check if the file is in an ignored directory
-				if isInIgnoredDir(filePath, ignoreDirs) {
+				// Check if the file extension is allowed
+				fileExtension := filepath.Ext(filePath)
+				if !contains(supportedFileTypes, fileExtension) {
 					continue
 				}
 
@@ -691,7 +693,7 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 
 				// If a new directory is created, add it to the watcher
 				if info, err := os.Stat(filePath); err == nil && info.IsDir() {
-					if !containsDir(ignoreDirs, info.Name()) {
+					if !shouldIgnore(filePath, ignorePatterns) {
 						err = watcher.Add(filePath)
 						if err != nil {
 							fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
@@ -719,7 +721,6 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 	}
 }
 
-// Returns t
 func readGitignore(dirPath string) ([]string, error) {
 	gitignorePath := filepath.Join(dirPath, ".gitignore")
 	ignorePatterns := []string{".git", "node_modules", "package-lock.json"}
