@@ -34,7 +34,7 @@ var supportedFileTypes = []string{
 }
 
 var (
-	siteUrl = "mordecaiapp.com"
+	siteUrl = "devwilson.dev"
 )
 
 //                          _                _
@@ -612,42 +612,27 @@ func deleteToken() error {
 //   \_/\_/ \__,_|\__\___|_| |_|  \__,_|_|_|  \___|\___|\__\___/|_|   \__, |
 //                                                                    |___/
 
-// FIX THE MEMORY LEAKS
-
 func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) error {
+	fmt.Println("Hello")
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return fmt.Errorf("error creating watcher: %v", err)
 	}
-
 	defer watcher.Close()
 
 	filesToUpdate := make([]FileContent, 0)
 	var timeoutTimer *time.Timer
 
-	// Define directories to ignore
+	// Read .gitignore patterns
 	ignorePatterns, err := readGitignore(directoryPath)
 	if err != nil {
 		return fmt.Errorf("error reading .gitignore: %v", err)
 	}
 
-	err = filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			// Check if the directory should be ignored
-			if shouldIgnore(path, ignorePatterns) {
-				return filepath.SkipDir
-			}
-
-			// fmt.Printf("Watching directory: %s\n", path)
-			return watcher.Add(path)
-		}
-		return nil
-	})
+	// Set up initial watch
+	err = setupInitialWatch(watcher, directoryPath, ignorePatterns)
 	if err != nil {
-		return fmt.Errorf("error setting up recursive watch: %v", err)
+		return fmt.Errorf("error setting up initial watch: %v", err)
 	}
 
 	for {
@@ -657,52 +642,26 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 				return fmt.Errorf("watcher channel closed")
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Chmod) != 0 {
-				// Check if file path must be ignored
 				filePath := event.Name
 				if shouldIgnore(filePath, ignorePatterns) {
 					continue
 				}
 
-				// Check if the file extension is allowed
+				if event.Op&fsnotify.Create != 0 {
+					if info, err := os.Stat(filePath); err == nil && info.IsDir() {
+						err = addWatchToDirectory(watcher, filePath, ignorePatterns)
+						if err != nil {
+							fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
+						}
+					}
+				}
+
 				fileExtension := filepath.Ext(filePath)
 				if !contains(supportedFileTypes, fileExtension) {
 					continue
 				}
 
-				// Check if file is already in filesToUpdate
-				fileRepeated := false
-				for _, file := range filesToUpdate {
-					if file.FilePath == filePath {
-						fileRepeated = true
-						break
-					}
-				}
-
-				if !fileRepeated {
-					content, err := readFile(filePath)
-					if err != nil {
-						fmt.Printf("Error reading file %s: %v\n", filePath, err)
-						continue
-					}
-
-					filesToUpdate = append(filesToUpdate, FileContent{
-						FilePath:      filePath,
-						FileExtension: fileExtension,
-						DataChunks:    content,
-					})
-				}
-
-				// If a new directory is created, add it to the watcher
-				if info, err := os.Stat(filePath); err == nil && info.IsDir() {
-					if !shouldIgnore(filePath, ignorePatterns) {
-						err = watcher.Add(filePath)
-						if err != nil {
-							fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
-						} else {
-							fmt.Printf("New directory added to watch: %s\n", filePath)
-						}
-					}
-				}
+				updateFileContent(filePath, fileExtension, &filesToUpdate)
 
 				if timeoutTimer != nil {
 					timeoutTimer.Stop()
@@ -720,6 +679,41 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 			fmt.Println("error:", err)
 		}
 	}
+}
+
+func setupInitialWatch(watcher *fsnotify.Watcher, directoryPath string, ignorePatterns []string) error {
+	return filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if shouldIgnore(path, ignorePatterns) {
+				return filepath.SkipDir
+			}
+			return watcher.Add(path)
+		}
+		return nil
+	})
+}
+
+func addWatchToDirectory(watcher *fsnotify.Watcher, dirPath string, ignorePatterns []string) error {
+	fmt.Println("hello")
+	return filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if shouldIgnore(path, ignorePatterns) {
+				fmt.Println("Ignoring %s", path)
+				return filepath.SkipDir
+			}
+			return watcher.Add(path)
+		}
+
+		fmt.Println("Listening for %s", path)
+
+		return nil
+	})
 }
 
 func readGitignore(dirPath string) ([]string, error) {
@@ -756,7 +750,8 @@ func shouldIgnore(path string, ignorePatterns []string) bool {
 				return true
 			}
 		} else {
-			if strings.Contains(path, string(filepath.Separator)+pattern+string(filepath.Separator)) {
+			if strings.Contains(path, string(filepath.Separator)+pattern) ||
+				strings.HasPrefix(path, pattern) {
 				return true
 			}
 		}
@@ -764,33 +759,52 @@ func shouldIgnore(path string, ignorePatterns []string) bool {
 	return false
 }
 
-// Helper function to check if a directory should be ignored
-func containsDir(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
+func updateFileContent(filePath, fileExtension string, filesToUpdate *[]FileContent) {
+	for i, file := range *filesToUpdate {
+		if file.FilePath == filePath {
+			(*filesToUpdate)[i].DataChunks, _ = readFile(filePath)
+			return
 		}
 	}
-	return false
-}
 
-// Helper function to check if a file is in an ignored directory
-func isInIgnoredDir(filePath string, ignoreDirs []string) bool {
-	parts := strings.Split(filePath, string(os.PathSeparator))
-	for _, part := range parts {
-		if containsDir(ignoreDirs, part) {
-			return true
-		}
+	content, err := readFile(filePath)
+	if err != nil {
+		fmt.Printf("Error reading file %s: %v\n", filePath, err)
+		return
 	}
-	return false
+
+	*filesToUpdate = append(*filesToUpdate, FileContent{
+		FilePath:      filePath,
+		FileExtension: fileExtension,
+		DataChunks:    content,
+	})
 }
 
-// Helper function to check if a slice contains a string
+func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId, repoId, repoName string) {
+	// Log the function parameters
+	fmt.Println("**Processing Updated Files**")
+	fmt.Printf("Token: %s\n", token)
+	fmt.Printf("Workspace ID: %s\n", workspaceId)
+	fmt.Printf("Repo ID: %s\n", repoId)
+	fmt.Printf("Repo Name: %s\n", repoName)
 
-func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string, repoId string, repoName string) {
+	// Log details of each file to be updated
+	fmt.Println("Files to Update:")
+	for i, file := range filesToUpdate {
+		fmt.Printf("File %d:\n", i+1)
+		fmt.Printf("  Path: %s\n", file.FilePath)
+		fmt.Printf("  Extension: %s\n", file.FileExtension)
+		fmt.Printf("  Content Length: %d bytes\n", len(file.DataChunks))
+		// Optionally, you can print a preview of the content (first 100 characters)
+		fmt.Printf("  Content Preview: %s...\n", file.DataChunks)
+		fmt.Println()
+	}
 
-	sendDataToServer(filesToUpdate, token, workspaceId, repoId, repoName, true)
+	// Send data to server
+	fmt.Println("Sending data to server...")
 
+	sendDataToServer(filesToUpdate, token, workspaceId, repoName, repoId, true)
+	fmt.Println("Data sent to server.")
 }
 
 //  ___  ___ _ ____   _____ _ __
