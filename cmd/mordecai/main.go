@@ -781,30 +781,7 @@ func updateFileContent(filePath, fileExtension string, filesToUpdate *[]FileCont
 }
 
 func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId, repoId, repoName string) {
-	// Log the function parameters
-	fmt.Println("**Processing Updated Files**")
-	fmt.Printf("Token: %s\n", token)
-	fmt.Printf("Workspace ID: %s\n", workspaceId)
-	fmt.Printf("Repo ID: %s\n", repoId)
-	fmt.Printf("Repo Name: %s\n", repoName)
-
-	// Log details of each file to be updated
-	fmt.Println("Files to Update:")
-	for i, file := range filesToUpdate {
-		fmt.Printf("File %d:\n", i+1)
-		fmt.Printf("  Path: %s\n", file.FilePath)
-		fmt.Printf("  Extension: %s\n", file.FileExtension)
-		fmt.Printf("  Content Length: %d bytes\n", len(file.DataChunks))
-		// Optionally, you can print a preview of the content (first 100 characters)
-		fmt.Printf("  Content Preview: %s...\n", file.DataChunks)
-		fmt.Println()
-	}
-
-	// Send data to server
-	fmt.Println("Sending data to server...")
-
 	sendDataToServer(filesToUpdate, token, workspaceId, repoName, repoId, true)
-	fmt.Println("Data sent to server.")
 }
 
 //  ___  ___ _ ____   _____ _ __
