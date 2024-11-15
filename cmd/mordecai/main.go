@@ -613,44 +613,51 @@ func deleteToken() error {
 //                                                                    |___/
 
 func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) error {
-	fmt.Println("Hello")
+	fmt.Println("Starting watchDirectory function")
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
+		fmt.Printf("Error creating watcher: %v\n", err)
 		return fmt.Errorf("error creating watcher: %v", err)
 	}
 	defer watcher.Close()
 
+	fmt.Println("Watcher created successfully")
+
 	filesToUpdate := make([]FileContent, 0)
 	var timeoutTimer *time.Timer
 
-	// Read .gitignore patterns
 	ignorePatterns, err := readGitignore(directoryPath)
-	fmt.Println("ignore patterns %s", ignorePatterns)
-	// RETURNS ignore patterns %s [.git node_modules package-lock.json .env OPT.md dist/ .DS_STORE mordecai-app]
+	fmt.Printf("Ignore patterns: %v\n", ignorePatterns)
 	if err != nil {
+		fmt.Printf("Error reading .gitignore: %v\n", err)
 		return fmt.Errorf("error reading .gitignore: %v", err)
 	}
 
-	// Set up initial watch
 	err = setupInitialWatch(watcher, directoryPath, ignorePatterns)
 	if err != nil {
+		fmt.Printf("Error setting up initial watch: %v\n", err)
 		return fmt.Errorf("error setting up initial watch: %v", err)
 	}
+	fmt.Println("Initial watch setup complete")
 
 	for {
 		select {
 		case event, ok := <-watcher.Events:
 			if !ok {
+				fmt.Println("Watcher channel closed")
 				return fmt.Errorf("watcher channel closed")
 			}
+			fmt.Printf("Event received: %s\n", event)
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Chmod) != 0 {
 				filePath := event.Name
 				if shouldIgnore(filePath, ignorePatterns) {
+					fmt.Printf("Ignoring file: %s\n", filePath)
 					continue
 				}
 
 				if event.Op&fsnotify.Create != 0 {
 					if info, err := os.Stat(filePath); err == nil && info.IsDir() {
+						fmt.Printf("New directory created: %s\n", filePath)
 						err = addWatchToDirectory(watcher, filePath, ignorePatterns)
 						if err != nil {
 							fmt.Printf("Error watching new directory %s: %v\n", filePath, err)
@@ -660,9 +667,11 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 
 				fileExtension := filepath.Ext(filePath)
 				if !contains(supportedFileTypes, fileExtension) {
+					fmt.Printf("Unsupported file type: %s\n", filePath)
 					continue
 				}
 
+				fmt.Printf("Updating file content: %s\n", filePath)
 				updateFileContent(filePath, fileExtension, &filesToUpdate)
 
 				if timeoutTimer != nil {
@@ -670,26 +679,37 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 				}
 
 				timeoutTimer = time.AfterFunc(5*time.Second, func() {
+					fmt.Println("Processing updated files")
 					processUpdatedFiles(filesToUpdate, token, workspaceId, repoId, repoName)
 					filesToUpdate = make([]FileContent, 0)
 				})
 			}
 		case err, ok := <-watcher.Errors:
 			if !ok {
+				fmt.Println("Watcher error channel closed")
 				return fmt.Errorf("watcher error channel closed")
 			}
-			fmt.Println("error:", err)
+			fmt.Printf("Watcher error: %v\n", err)
 		}
 	}
 }
 
 func setupInitialWatch(watcher *fsnotify.Watcher, directoryPath string, ignorePatterns []string) error {
+	fmt.Println("Setting up initial watch")
 	return filepath.Walk(directoryPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
+			fmt.Printf("Error walking path %s: %v\n", path, err)
 			return err
 		}
 
-		if shouldIgnore(path, ignorePatterns) {
+		relativePath, err := filepath.Rel(directoryPath, path)
+		if err != nil {
+			fmt.Printf("Error getting relative path for %s: %v\n", path, err)
+			return err
+		}
+
+		if shouldIgnore(relativePath, ignorePatterns) {
+			fmt.Printf("Ignoring path: %s\n", path)
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -697,6 +717,7 @@ func setupInitialWatch(watcher *fsnotify.Watcher, directoryPath string, ignorePa
 		}
 
 		if info.IsDir() {
+			fmt.Printf("Adding watcher to directory: %s\n", path)
 			return watcher.Add(path)
 		}
 		return nil
