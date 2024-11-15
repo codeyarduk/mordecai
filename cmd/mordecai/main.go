@@ -625,6 +625,8 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 
 	// Read .gitignore patterns
 	ignorePatterns, err := readGitignore(directoryPath)
+	fmt.Println("ignore patterns %s", ignorePatterns)
+	// RETURNS ignore patterns %s [.git node_modules package-lock.json .env OPT.md dist/ .DS_STORE mordecai-app]
 	if err != nil {
 		return fmt.Errorf("error reading .gitignore: %v", err)
 	}
@@ -686,10 +688,15 @@ func setupInitialWatch(watcher *fsnotify.Watcher, directoryPath string, ignorePa
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			if shouldIgnore(path, ignorePatterns) {
+
+		if shouldIgnore(path, ignorePatterns) {
+			if info.IsDir() {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+
+		if info.IsDir() {
 			return watcher.Add(path)
 		}
 		return nil
@@ -704,7 +711,6 @@ func addWatchToDirectory(watcher *fsnotify.Watcher, dirPath string, ignorePatter
 		}
 		if info.IsDir() {
 			if shouldIgnore(path, ignorePatterns) {
-				fmt.Println("Ignoring %s", path)
 				return filepath.SkipDir
 			}
 			return watcher.Add(path)
@@ -718,7 +724,7 @@ func addWatchToDirectory(watcher *fsnotify.Watcher, dirPath string, ignorePatter
 
 func readGitignore(dirPath string) ([]string, error) {
 	gitignorePath := filepath.Join(dirPath, ".gitignore")
-	ignorePatterns := []string{".git", "node_modules", "package-lock.json"}
+	ignorePatterns := []string{".git/", "node_modules/", "package-lock.json"}
 
 	if _, err := os.Stat(gitignorePath); err == nil {
 		file, err := os.Open(gitignorePath)
