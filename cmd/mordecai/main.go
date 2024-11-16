@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -405,13 +406,19 @@ func authenticate() (string, error) {
 	}
 
 	if len(token) > 0 {
-		// Remove this line
 		// This is where you will ping the workspaces to see if the token is valid
 	}
 
-	// This needs to keep retrying if the port is in use
-	port := 8300
+	// Find an available port
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return "", fmt.Errorf("failed to find an available port: %w", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
+
 	authURL := fmt.Sprintf("%s/cli?port=%d", authenticateUrl, port)
+
 	// Start local server in a goroutine
 	tokenChan := make(chan string, 1)
 	errChan := make(chan error, 1)
