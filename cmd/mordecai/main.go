@@ -93,6 +93,8 @@ func main() {
 		helpCommand()
 	case "--version":
 		versionCommand()
+	case "--installation-method":
+		installationMethodCommand()
 	default:
 		fmt.Printf("Unknown command %s\n", command)
 		fmt.Println("Use 'mordecai --help' for usage information.")
@@ -1178,4 +1180,10 @@ func helpCommand() {
 	fmt.Println("  mordecai logout      - Logout of your Mordecai account")
 	fmt.Println("  mordecai --help      - Display this help message")
 	fmt.Println("  mordecai --version   - Display the version of Mordecai you have installed")
+	fmt.Println(" mordecai --installation-method   - Display the method you used to install mordecai")
+}
+
+func installationMethodCommand() (string, error) {
+	fmt.Println("test")
+	return "test", nil
 }
