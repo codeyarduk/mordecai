@@ -1184,6 +1184,11 @@ func helpCommand() {
 }
 
 func installationMethodCommand() (string, error) {
+	if _, err := exec.Command("brew", "list", "mordecai").Output(); err == nil {
+
+		fmt.Println("brew")
+		return "brew", nil
+	}
 	fmt.Println("test")
 	return "test", nil
 }
