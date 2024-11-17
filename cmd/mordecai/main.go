@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	version = "v0.0.22"
+	version = "v0.0.21"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -47,52 +47,38 @@ var (
 
 func main() {
 
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: mordecai <command>")
+		fmt.Println("Run 'mordecai --help' for a list of available commands.")
+		os.Exit(1)
+	}
+
 	command := os.Args[1]
+
 	switch command {
 	case "link":
 
-		latestVersion, err := getLatestVersion()
-		if err == nil && compareVersions(latestVersion, version) > 0 {
-			m := VersionUpdateModel{
-				latestVersion:  latestVersion,
-				currentVersion: version,
-			}
-
-			p := tea.NewProgram(m)
-			finalModel, err := p.Run()
-			if err != nil {
-				fmt.Println("Error running program:", err)
-				os.Exit(1)
-			}
-
-			if finalModel.(VersionUpdateModel).choice == "y" {
-				cmd := exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash")
-
-				output, err := cmd.CombinedOutput()
-				if err != nil {
-					fmt.Printf("Error executing command: %v\n", err)
-					return
-				}
-
-				fmt.Printf("\n%s\nSuccessfully updated Mordecai\n", output)
-
-				os.Exit(0)
-			}
-
-			return
-		}
 		if len(os.Args) < 2 {
 			fmt.Println("Usage: mordecai <commands>")
 			os.Exit(1)
 		}
 
+		updateVersion()
 		linkCommand()
+
 	case "logout":
 		logoutCommand()
 	case "--help":
 		helpCommand()
 	case "--version":
 		versionCommand()
+	case "--installation-method":
+		var installationMethod, err = installationMethodCommand()
+		if err != nil {
+			fmt.Println("Error checking installation method:", err)
+			return
+		}
+		fmt.Printf("Mordecai was installed with %s\n", installationMethod)
 	default:
 		fmt.Printf("Unknown command %s\n", command)
 		fmt.Println("Use 'mordecai --help' for usage information.")
@@ -106,6 +92,61 @@ func main() {
 //  \ V /  __/ |  \__ \ | (_) | | | | | | | | (_| |
 //   \_/ \___|_|  |___/_|\___/|_| |_|_|_| |_|\__, |
 //                                           |___/
+
+func updateVersion() error {
+	latestVersion, err := getLatestVersion()
+	if err == nil && compareVersions(latestVersion, version) > 0 {
+		m := VersionUpdateModel{
+			latestVersion:  latestVersion,
+			currentVersion: version,
+		}
+
+		p := tea.NewProgram(m)
+		finalModel, err := p.Run()
+		if err != nil {
+			fmt.Println("Error running program:", err)
+			os.Exit(1)
+		}
+
+		if finalModel.(VersionUpdateModel).choice == "y" {
+			// Checks how the CLI tool was initally installed
+			methodOfInstallation, err := installationMethodCommand()
+			if err != nil {
+				fmt.Println("Error checking installation method:", err)
+				return err
+			}
+			var cmd *exec.Cmd
+			var updateMessage string
+
+			switch methodOfInstallation {
+			case "brew":
+				cmd = exec.Command("brew", "upgrade", "mordecai")
+				updateMessage = "Successfully updated Mordecai using Brew"
+			case "curl":
+				cmd = exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash")
+				updateMessage = "Successfully updated Mordecai using Brew"
+			default:
+				fmt.Println("Unknown installation method. Unable to update.")
+				return err
+
+			}
+
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				fmt.Printf("Error executing command: %v\n", err)
+				return err
+			}
+
+			fmt.Printf("\n%s\n%s\n", output, updateMessage)
+
+			os.Exit(0)
+		}
+
+		return err
+	}
+
+	return nil
+}
 
 func getLatestVersion() (string, error) {
 
@@ -133,8 +174,6 @@ func getLatestVersion() (string, error) {
 		fmt.Printf("Error parsing JSON: %v\n", err)
 	}
 
-	// Output the latest version tag
-	fmt.Printf("Latest version: %s\n", release.TagName)
 	return release.TagName, err
 }
 
@@ -1174,8 +1213,18 @@ func versionCommand() {
 
 func helpCommand() {
 	fmt.Println("Mordecai CLI Usage:")
-	fmt.Println("  mordecai link        - Link your codebase with Mordecai")
-	fmt.Println("  mordecai logout      - Logout of your Mordecai account")
-	fmt.Println("  mordecai --help      - Display this help message")
-	fmt.Println("  mordecai --version   - Display the version of Mordecai you have installed")
+	fmt.Println("  mordecai link                   - Link your codebase with Mordecai")
+	fmt.Println("  mordecai logout                 - Logout of your Mordecai account")
+	fmt.Println("  mordecai --help                 - Display this help message")
+	fmt.Println("  mordecai --version              - Display the version of Mordecai you have installed")
+	fmt.Println("  mordecai --installation-method  - Display the method you used to install mordecai")
+}
+
+func installationMethodCommand() (string, error) {
+	if _, err := exec.Command("brew", "list", "mordecai").Output(); err == nil {
+
+		fmt.Println("brew")
+		return "brew", nil
+	}
+	return "curl", nil
 }
