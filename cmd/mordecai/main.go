@@ -35,7 +35,7 @@ var supportedFileTypes = []string{
 }
 
 var (
-	siteUrl = "mordecaiapp.com"
+	siteUrl = "devwilson.dev"
 )
 
 //                          _                _
@@ -835,7 +835,7 @@ func isInIgnoredDir(filePath string, ignoreDirs []string) bool {
 
 func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string, repoId string, repoName string) {
 
-	sendDataToServer(filesToUpdate, token, workspaceId, repoId, repoName, true)
+	sendDataToServer(filesToUpdate, token, workspaceId, repoName, repoId, true)
 
 }
 
