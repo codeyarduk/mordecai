@@ -688,7 +688,7 @@ func watchDirectory(directoryPath, workspaceId, repoName, repoId, token string) 
 			}
 
 			// fmt.Printf("Watching directory: %s\n", path)
-			return watcher.Add(path)
+			_ = watcher.Add(path)
 		}
 		return nil
 	})
