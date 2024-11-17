@@ -51,19 +51,6 @@ func main() {
 	switch command {
 	case "link":
 
-		// Checks how the CLI tool was initally installed
-		version, err := installationMethodCommand()
-		if err != nil {
-			fmt.Println("Error checking installation method:", err)
-			return
-		}
-
-		if version == "brew" {
-			fmt.Println("Mordecai was installed with Brew")
-		} else {
-			fmt.Println("Mordecai was installed with Curl")
-		}
-
 		latestVersion, err := getLatestVersion()
 		if err == nil && compareVersions(latestVersion, version) > 0 {
 			m := VersionUpdateModel{
@@ -79,7 +66,27 @@ func main() {
 			}
 
 			if finalModel.(VersionUpdateModel).choice == "y" {
-				cmd := exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash")
+				// Checks how the CLI tool was initally installed
+				methodOfInstallation, err := installationMethodCommand()
+				if err != nil {
+					fmt.Println("Error checking installation method:", err)
+					return
+				}
+				var cmd *exec.Cmd
+				var updateMessage string
+
+				switch methodOfInstallation {
+				case "brew":
+					cmd = exec.Command("brew", "upgrade", "mordecai")
+					updateMessage = "Successfully updated Mordecai using Brew"
+				case "curl":
+					cmd = exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash")
+					updateMessage = "Successfully updated Mordecai using Brew"
+				default:
+					fmt.Println("Unknown installation method. Unable to update.")
+					return
+
+				}
 
 				output, err := cmd.CombinedOutput()
 				if err != nil {
@@ -87,7 +94,7 @@ func main() {
 					return
 				}
 
-				fmt.Printf("\n%s\nSuccessfully updated Mordecai\n", output)
+				fmt.Printf("\n%s\n%s\n", output, updateMessage)
 
 				os.Exit(0)
 			}
