@@ -51,6 +51,19 @@ func main() {
 	switch command {
 	case "link":
 
+		// Checks how the CLI tool was initally installed
+		version, err := installationMethodCommand()
+		if err != nil {
+			fmt.Println("Error checking installation method:", err)
+			return
+		}
+
+		if version == "brew" {
+			fmt.Println("Mordecai was installed with Brew")
+		} else {
+			fmt.Println("Mordecai was installed with Curl")
+		}
+
 		latestVersion, err := getLatestVersion()
 		if err == nil && compareVersions(latestVersion, version) > 0 {
 			m := VersionUpdateModel{
@@ -1189,6 +1202,5 @@ func installationMethodCommand() (string, error) {
 		fmt.Println("brew")
 		return "brew", nil
 	}
-	fmt.Println("test")
-	return "test", nil
+	return "curl", nil
 }
