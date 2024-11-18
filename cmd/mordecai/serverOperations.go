@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"io"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -259,7 +260,7 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 	return selectedRepoName, selectedRepoId, nil
 }
 
-func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) error {
+func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) (string, error) {
 
 	endpointURL := fmt.Sprintf("https://api.%s/cli/chunk", siteUrl)
 
@@ -282,15 +283,17 @@ func sendDataToServer(files []FileContent, token string, workspaceId string, rep
 	jsonData, err := json.Marshal(postData)
 	if err != nil {
 		fmt.Printf("Error marshaling JSON: %v\n", err)
-		return err
+		return "", err
 	}
+
+	// contextId: 1245-5912-9152-2588
 
 	// Send the POST request
 	req, err := http.NewRequest("POST", endpointURL, bytes.NewReader(jsonData))
 
 	if err != nil {
 		fmt.Printf("Error creating request: %v\n", err)
-		return err
+		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -298,9 +301,24 @@ func sendDataToServer(files []FileContent, token string, workspaceId string, rep
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("Error sending request: %v\n", err)
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
-	// Handle the response status code and body as needed
-	return nil
+	// Read the response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response body: %v", err)
+	}
+
+	// Parse the JSON response
+	var responseData struct {
+		ContextId string `json:"contextId"`
+	}
+	err = json.Unmarshal(body, &responseData)
+	if err != nil {
+		return "", fmt.Errorf("error parsing JSON response: %v", err)
+	}
+
+	// Return the contextId
+	return responseData.ContextId, nil
 }

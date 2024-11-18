@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	version = "v0.0.25"
+	version = "v0.0.24"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -19,7 +19,7 @@ var supportedFileTypes = []string{
 }
 
 var (
-	siteUrl = "devwilson.dev"
+	siteUrl = "mordecaiapp.com"
 )
 
 //                          _                _
@@ -117,7 +117,12 @@ func linkCommand() {
 		return
 	}
 
-	sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
+	repoId, err = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
+	if err != nil {
+		fmt.Println("Error sending data to server.")
+		return
+	}
+
 	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
