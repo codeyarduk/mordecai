@@ -19,7 +19,7 @@ var supportedFileTypes = []string{
 }
 
 var (
-	siteUrl = "mordecaiapp.com"
+	siteUrl = "devwilson.dev"
 )
 
 //                          _                _
