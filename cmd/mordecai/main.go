@@ -107,21 +107,22 @@ func linkCommand() {
 		fmt.Println("Error getting token: %v\n", tokenErr)
 	}
 
+	// Get all repote spaces
 	workspaceId, workspaceName, err := getWorkspaces(token)
-	repoName, repoId, err := linkRepo(token, workspaceId)
-
-	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
-	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 	if err != nil {
 		fmt.Printf("Error getting workspaces: %v\n", err)
 		return
-	}
 
+	}
+	repoName, repoId, err := linkRepo(token, workspaceId)
 	repoId, err = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
 	if err != nil {
 		fmt.Println("Error sending data to server.")
 		return
 	}
+
+	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
+	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 
 	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {
