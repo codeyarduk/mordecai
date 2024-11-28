@@ -67,6 +67,13 @@ func updateVersion() error {
 
 			switch methodOfInstallation {
 			case "brew":
+				// First run brew update
+				updateCmd := exec.Command("brew", "update")
+				updateOutput, err := updateCmd.CombinedOutput()
+				if err != nil {
+					fmt.Printf("Error updating Homebrew: %v\n%s", err, updateOutput)
+					return err
+				}
 				cmd = exec.Command("brew", "upgrade", "mordecai")
 				updateMessage = "Successfully updated Mordecai using Brew"
 			case "curl":
