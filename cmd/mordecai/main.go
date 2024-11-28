@@ -3,11 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 )
 
 const (
-	version = "v0.0.27"
+	version = "v0.0.28"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -163,13 +162,4 @@ func helpCommand() {
 	fmt.Println("  mordecai --help                 - Display this help message")
 	fmt.Println("  mordecai --version              - Display the version of Mordecai you have installed")
 	fmt.Println("  mordecai --installation-method  - Display the method you used to install mordecai")
-}
-
-func installationMethodCommand() (string, error) {
-	if _, err := exec.Command("brew", "list", "mordecai").Output(); err == nil {
-
-		fmt.Println("brew")
-		return "brew", nil
-	}
-	return "curl", nil
 }

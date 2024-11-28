@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 //                     _             _
@@ -35,6 +36,26 @@ func updateVersion() error {
 		}
 
 		if finalModel.(VersionUpdateModel).choice == "y" {
+
+			// Create a channel to signal when the update is complete
+			done := make(chan bool)
+
+			// Start the loading animation in a separate goroutine
+			go func() {
+				frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+				i := 0
+				for {
+					select {
+					case <-done:
+						return
+					default:
+						fmt.Printf("\r%s Updating Mordecai...", frames[i])
+						i = (i + 1) % len(frames)
+						time.Sleep(100 * time.Millisecond)
+					}
+				}
+			}()
+
 			// Checks how the CLI tool was initally installed
 			methodOfInstallation, err := installationMethodCommand()
 			if err != nil {
@@ -72,6 +93,14 @@ func updateVersion() error {
 	}
 
 	return nil
+}
+
+func installationMethodCommand() (string, error) {
+	if _, err := exec.Command("brew", "list", "mordecai").Output(); err == nil {
+
+		return "brew", nil
+	}
+	return "curl", nil
 }
 
 func getLatestVersion() (string, error) {
