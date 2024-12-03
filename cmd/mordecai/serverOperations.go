@@ -59,36 +59,35 @@ func getWorkspaces(token string) (string, string, error) {
 	fmt.Println("Fetching available workspaces...")
 	endpointURL := fmt.Sprintf("https://api.%s/cli/spaces", siteUrl)
 
-	// Create the request body
-	postData := struct {
+	type Workspace struct {
+		WorkspaceID   string `json:"spaceId"`
+		WorkspaceName string `json:"spaceName"`
+	}
+
+	requestBody := struct {
 		Token string `json:"token"`
 	}{
 		Token: token,
 	}
 
-	// Marshal the postData into JSON
-	jsonData, err := json.Marshal(postData)
+	workspaces, err := serverRequest[[]Workspace](endpointURL, requestBody)
 	if err != nil {
-		return "", "", fmt.Errorf("error marshaling JSON: %v", err)
+		return "", "", fmt.Errorf("failed to fetch workspaces: %v", err)
 	}
 
-	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", "", fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-	}
-
-	// Read and parse the response body
-	var workspaces []struct {
+	workspaceData := make([]struct {
 		WorkspaceID   string `json:"spaceId"`
 		WorkspaceName string `json:"spaceName"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&workspaces); err != nil {
-		return "", "", fmt.Errorf("error decoding response: %v", err)
+	}, len(workspaces))
+
+	for i, w := range workspaces {
+		workspaceData[i] = struct {
+			WorkspaceID   string `json:"spaceId"`
+			WorkspaceName string `json:"spaceName"`
+		}{
+			WorkspaceID:   w.WorkspaceID,
+			WorkspaceName: w.WorkspaceName,
+		}
 	}
 
 	// Clear the screen and move cursor to top before showing workspace selection
@@ -96,7 +95,7 @@ func getWorkspaces(token string) (string, string, error) {
 	fmt.Print("\033[H")
 
 	// Create a new workspace model with the enhanced styling
-	m := newWorkspaceModel(workspaces)
+	m := newWorkspaceModel(workspaceData)
 
 	// Run the Bubble Tea program
 	p := tea.NewProgram(m, tea.WithAltScreen())
