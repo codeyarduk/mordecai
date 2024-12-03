@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"io"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -39,33 +40,26 @@ func serverRequest[T any](endpoint string, body interface{}) (T, error) {
 	}
 	defer resp.Body.Close()
 
-	// First, try to decode the response into a generic error structure
+	// Read the response body into a buffer
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return result, fmt.Errorf("error reading response: %v", err)
+	}
+
+	// Try to decode error response first
 	var errorResp struct {
 		Success bool   `json:"success"`
 		Error   string `json:"error"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&errorResp); err == nil {
+	if err := json.Unmarshal(respBody, &errorResp); err == nil {
 		if errorResp.Error == "No Access Token" || errorResp.Error == "Expired Token" {
-			fmt.Println("Your session has expired or does not exist, please authenticate to continue.")
 			authenticate()
 			return result, fmt.Errorf("authentication required: %s", errorResp.Error)
 		}
 	}
 
-	// Reset the response body for the actual result
-	resp.Body.Close()
-	resp, err = http.Post(endpoint, "application/json", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return result, fmt.Errorf("error making request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return result, fmt.Errorf("request failed with status: %s", resp.Status)
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	// Decode the actual response
+	if err := json.Unmarshal(respBody, &result); err != nil {
 		return result, fmt.Errorf("error decoding response: %v", err)
 	}
 
