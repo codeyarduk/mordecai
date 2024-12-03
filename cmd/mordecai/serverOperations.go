@@ -26,40 +26,79 @@ import (
 //       |_|
 //
 
+func serverRequest[T any](endpoint string, body interface{}) (T, error) {
+	var result T
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return result, fmt.Errorf("error marshaling request body: %v", err)
+	}
+
+	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return result, fmt.Errorf("error making request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read the response body into a buffer
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return result, fmt.Errorf("error reading response: %v", err)
+	}
+
+	// Try to decode error response first
+	var errorResp struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+	}
+	if err := json.Unmarshal(respBody, &errorResp); err == nil {
+		if errorResp.Error == "No Access Token" || errorResp.Error == "Expired Token" {
+			authenticate()
+			return result, fmt.Errorf("authentication required: %s", errorResp.Error)
+		}
+	}
+
+	// Decode the actual response
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return result, fmt.Errorf("error decoding response: %v", err)
+	}
+
+	return result, nil
+}
+
 func getWorkspaces(token string) (string, string, error) {
 	fmt.Println("Fetching available workspaces...")
 	endpointURL := fmt.Sprintf("https://api.%s/cli/spaces", siteUrl)
 
-	// Create the request body
-	postData := struct {
+	type Workspace struct {
+		WorkspaceID   string `json:"spaceId"`
+		WorkspaceName string `json:"spaceName"`
+	}
+
+	requestBody := struct {
 		Token string `json:"token"`
 	}{
 		Token: token,
 	}
 
-	// Marshal the postData into JSON
-	jsonData, err := json.Marshal(postData)
+	workspaces, err := serverRequest[[]Workspace](endpointURL, requestBody)
 	if err != nil {
-		return "", "", fmt.Errorf("error marshaling JSON: %v", err)
+		return "", "", fmt.Errorf("failed to fetch workspaces: %v", err)
 	}
 
-	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", "", fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-	}
-
-	// Read and parse the response body
-	var workspaces []struct {
+	workspaceData := make([]struct {
 		WorkspaceID   string `json:"spaceId"`
 		WorkspaceName string `json:"spaceName"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&workspaces); err != nil {
-		return "", "", fmt.Errorf("error decoding response: %v", err)
+	}, len(workspaces))
+
+	for i, w := range workspaces {
+		workspaceData[i] = struct {
+			WorkspaceID   string `json:"spaceId"`
+			WorkspaceName string `json:"spaceName"`
+		}{
+			WorkspaceID:   w.WorkspaceID,
+			WorkspaceName: w.WorkspaceName,
+		}
 	}
 
 	// Clear the screen and move cursor to top before showing workspace selection
@@ -67,7 +106,7 @@ func getWorkspaces(token string) (string, string, error) {
 	fmt.Print("\033[H")
 
 	// Create a new workspace model with the enhanced styling
-	m := newWorkspaceModel(workspaces)
+	m := newWorkspaceModel(workspaceData)
 
 	// Run the Bubble Tea program
 	p := tea.NewProgram(m, tea.WithAltScreen())
@@ -213,8 +252,7 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 		return "", "", fmt.Errorf("error getting the current repo name: %v", err)
 	}
 
-	// Create the request body
-	postData := struct {
+	requestBody := struct {
 		Token       string `json:"token"`
 		WorkspaceId string `json:"spaceId"`
 	}{
@@ -222,32 +260,15 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 		WorkspaceId: workspaceId,
 	}
 
-	// Marshal the postData into JSON
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		return "", "", fmt.Errorf("error marshaling JSON: %v", err)
-	}
-
-	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", "", fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-	}
-
-	// Read and parse the response body
-	var repos []struct {
+	type Repository struct {
 		RepoID   string `json:"contextId"`
 		RepoName string `json:"contextName"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
-		return "", "", fmt.Errorf("error decoding response: %v", err)
+	repos, err := serverRequest[[]Repository](endpointURL, requestBody)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch repositories: %v", err)
 	}
-
 	// Checks if current repo has been previously linked
 	for _, repo := range repos {
 		if repo.RepoName == currentRepoName {
@@ -261,7 +282,6 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 }
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) (string, error) {
-
 	endpointURL := fmt.Sprintf("https://api.%s/cli/chunk", siteUrl)
 
 	postData := struct {
@@ -276,49 +296,20 @@ func sendDataToServer(files []FileContent, token string, workspaceId string, rep
 		Token:       token,
 		ContextId:   repoId,
 		ContextName: repoName,
-		WorkspaceId: workspaceId, // Use the workspaceID you obtained earlier
+		WorkspaceId: workspaceId,
 		Update:      update,
 	}
 
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		fmt.Printf("Error marshaling JSON: %v\n", err)
-		return "", err
-	}
-
-	// contextId: 1245-5912-9152-2588
-
-	// Send the POST request
-	req, err := http.NewRequest("POST", endpointURL, bytes.NewReader(jsonData))
-
-	if err != nil {
-		fmt.Printf("Error creating request: %v\n", err)
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Printf("Error sending request: %v\n", err)
-		return "", err
-	}
-	defer resp.Body.Close()
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("error reading response body: %v", err)
-	}
-
-	// Parse the JSON response
-	var responseData struct {
+	// Define the response structure
+	type Response struct {
 		ContextId string `json:"contextId"`
 	}
-	err = json.Unmarshal(body, &responseData)
+
+	// Use the serverRequest wrapper
+	response, err := serverRequest[Response](endpointURL, postData)
 	if err != nil {
-		return "", fmt.Errorf("error parsing JSON response: %v", err)
+		return "", fmt.Errorf("server request failed: %v", err)
 	}
 
-	// Return the contextId
-	return responseData.ContextId, nil
+	return response.ContextId, nil
 }

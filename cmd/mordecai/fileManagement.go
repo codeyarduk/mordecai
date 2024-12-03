@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,61 +33,49 @@ func readFile(filePath string) (string, error) {
 func readDir(dirPath string) ([]string, error) {
 	var files []string
 
-	// Read .gitignore file
-	gitignorePath := filepath.Join(dirPath, ".gitignore")
-	ignorePatterns := []string{".git", "node_modules", "package-lock.json"}
+	// Create patterns list
+	ps := []gitignore.Pattern{
+		gitignore.ParsePattern(".git", nil),
+		gitignore.ParsePattern("node_modules", nil),
+		gitignore.ParsePattern("package-lock.json", nil),
+	}
 
-	if _, err := os.Stat(gitignorePath); err == nil {
-		file, err := os.Open(gitignorePath)
-		if err != nil {
-			return nil, fmt.Errorf("error opening .gitignore: %v", err)
-		}
-		defer file.Close()
-		// What is this doing?
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			pattern := strings.TrimSpace(scanner.Text())
-			if pattern != "" && !strings.HasPrefix(pattern, "#") {
-				ignorePatterns = append(ignorePatterns, pattern)
+	// Read .gitignore file if it exists
+	gitignorePath := filepath.Join(dirPath, ".gitignore")
+	if data, err := os.ReadFile(gitignorePath); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && !strings.HasPrefix(line, "#") {
+				ps = append(ps, gitignore.ParsePattern(line, nil))
 			}
 		}
 	}
 
+	// Create matcher
+	matcher := gitignore.NewMatcher(ps)
+
+	// Walk directory
 	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Check if the file/directory should be ignored
-		for _, pattern := range ignorePatterns {
-			// Check if the pattern matches the base name
-			matched, err := filepath.Match(pattern, filepath.Base(path))
-			if err != nil {
-				return err
-			}
-			if matched {
-				if info.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-
-			// Check if the pattern is anywhere in the path
-			if strings.HasPrefix(pattern, "/") {
-				// Absolute path pattern
-				if strings.HasPrefix(path, filepath.Clean(pattern)) {
-					return filepath.SkipDir
-				}
-			} else {
-				// Relative path pattern
-				if strings.Contains(path, string(filepath.Separator)+pattern+string(filepath.Separator)) {
-					return filepath.SkipDir
-				}
-			}
+		// Get relative path for gitignore matching
+		relPath, err := filepath.Rel(dirPath, path)
+		if err != nil {
+			return err
 		}
 
+		// Skip if matched by gitignore
+		if matcher.Match(strings.Split(relPath, string(filepath.Separator)), info.IsDir()) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Add file if it's not a directory and has supported extension
 		if !info.IsDir() {
-			// Check if the file extension is in the allowed list
 			ext := filepath.Ext(path)
 			for _, allowedExt := range supportedFileTypes {
 				if ext == allowedExt {

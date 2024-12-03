@@ -43,6 +43,7 @@ func saveToken(token string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("New token saved")
 
 	err = os.WriteFile(filePath, []byte(token), 0600)
 	if err != nil {

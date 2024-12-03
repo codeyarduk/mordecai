@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	version = "v0.0.29"
+	version = "v0.0.30"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -97,7 +97,7 @@ func linkCommand() {
 		return
 	} else if !tokenIsValid {
 		authenticate()
-		// Add further code here as needed
+		// This needs to be updated soon
 	}
 
 	var token, tokenErr = loadToken()
@@ -113,16 +113,25 @@ func linkCommand() {
 		return
 
 	}
+	// Get name of the context
 	repoName, repoId, err := linkRepo(token, workspaceId)
-	repoId, err = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
+
+	err = showLoadingAnimation("Initialising repository...", func() error {
+		var sendErr error
+		repoId, sendErr = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
+		return sendErr
+	})
+
 	if err != nil {
 		fmt.Println("Error sending data to server.")
+		fmt.Println(err)
 		return
 	}
 
 	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
 	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 
+	// Add a watcher to the directory
 	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
