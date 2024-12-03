@@ -116,7 +116,7 @@ func linkCommand() {
 	// Get name of the context
 	repoName, repoId, err := linkRepo(token, workspaceId)
 
-	err = showLoadingAnimation("Initializing repository...", func() error {
+	err = showLoadingAnimation("Initialising repository...", func() error {
 		var sendErr error
 		repoId, sendErr = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
 		return sendErr
