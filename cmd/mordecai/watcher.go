@@ -193,6 +193,13 @@ func isInIgnoredDir(filePath string, ignoreDirs []string) bool {
 // Helper function to check if a slice contains a string
 
 func processUpdatedFiles(filesToUpdate []FileContent, token, workspaceId string, repoId string, repoName string) {
-	sendDataToServer(filesToUpdate, token, workspaceId, repoName, repoId, true)
+	err := showLoadingAnimation("Updating files...", func() error {
+		_, err := sendDataToServer(filesToUpdate, token, workspaceId, repoName, repoId, true)
+		return err
+	})
 
+	if err != nil {
+		fmt.Printf("Error processing files: %v\n", err)
+		return
+	}
 }
