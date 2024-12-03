@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	version = "v0.0.30"
+	version = "v0.0.31"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -103,7 +103,7 @@ func linkCommand() {
 	var token, tokenErr = loadToken()
 
 	if tokenErr != nil {
-		fmt.Println("Error getting token: %v\n", tokenErr)
+		fmt.Printf("Error getting token: %v\n", tokenErr)
 	}
 
 	// Get all repote spaces
