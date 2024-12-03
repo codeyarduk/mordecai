@@ -103,7 +103,7 @@ func linkCommand() {
 	var token, tokenErr = loadToken()
 
 	if tokenErr != nil {
-		fmt.Println("Error getting token: %v\n", tokenErr)
+		fmt.Printf("Error getting token: %v\n", tokenErr)
 	}
 
 	// Get all repote spaces
