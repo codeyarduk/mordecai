@@ -20,15 +20,12 @@ jobs:
         go-version: stable
 
     - name: Install dependencies
-      working-directory: ./mordecai/cmd/mordecai
       run: go mod tidy
 
     - name: Run tests
-      working-directory: ./mordecai/cmd/mordecai
       run: go test -v ./...
 
     - name: Run tests with coverage
-      working-directory: ./mordecai/cmd/mordecai
       run: |
         go test -race -coverprofile=coverage.txt -covermode=atomic ./...
         go tool cover -func=coverage.txt
