@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"io"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -271,7 +270,6 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 }
 
 func sendDataToServer(files []FileContent, token string, workspaceId string, repoName string, repoId string, update bool) (string, error) {
-
 	endpointURL := fmt.Sprintf("https://api.%s/cli/chunk", siteUrl)
 
 	postData := struct {
@@ -286,49 +284,20 @@ func sendDataToServer(files []FileContent, token string, workspaceId string, rep
 		Token:       token,
 		ContextId:   repoId,
 		ContextName: repoName,
-		WorkspaceId: workspaceId, // Use the workspaceID you obtained earlier
+		WorkspaceId: workspaceId,
 		Update:      update,
 	}
 
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		fmt.Printf("Error marshaling JSON: %v\n", err)
-		return "", err
-	}
-
-	// contextId: 1245-5912-9152-2588
-
-	// Send the POST request
-	req, err := http.NewRequest("POST", endpointURL, bytes.NewReader(jsonData))
-
-	if err != nil {
-		fmt.Printf("Error creating request: %v\n", err)
-		return "", err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Printf("Error sending request: %v\n", err)
-		return "", err
-	}
-	defer resp.Body.Close()
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("error reading response body: %v", err)
-	}
-
-	// Parse the JSON response
-	var responseData struct {
+	// Define the response structure
+	type Response struct {
 		ContextId string `json:"contextId"`
 	}
-	err = json.Unmarshal(body, &responseData)
+
+	// Use the serverRequest wrapper
+	response, err := serverRequest[Response](endpointURL, postData)
 	if err != nil {
-		return "", fmt.Errorf("error parsing JSON response: %v", err)
+		return "", fmt.Errorf("server request failed: %v", err)
 	}
 
-	// Return the contextId
-	return responseData.ContextId, nil
+	return response.ContextId, nil
 }
