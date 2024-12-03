@@ -46,11 +46,11 @@ func serverRequest[T any](endpoint string, body interface{}) (T, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&errorResp); err == nil {
-		if errorResp.Error == "No Access Token" || errorResp.Error == "Expired Token" {
-			fmt.Println("Your session has expired or does not exist, please authenticate to continue.")
-			authenticate()
-			return result, fmt.Errorf("authentication required: %s", errorResp.Error)
-		}
+		// if errorResp.Error == "No Access Token" || errorResp.Error == "Expired Token" {
+		fmt.Println("Your session has expired or does not exist, please authenticate to continue.")
+		authenticate()
+		return result, fmt.Errorf("authentication required: %s", errorResp.Error)
+		// }
 	}
 
 	// Reset the response body for the actual result
