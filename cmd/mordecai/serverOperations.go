@@ -26,19 +26,38 @@ import (
 //
 
 func serverRequest[T any](endpoint string, body interface{}) (T, error) {
-
 	var result T
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		fmt.Printf("Error marshaling request body: %v", err)
-		return result, err
+		return result, fmt.Errorf("error marshaling request body: %v", err)
 	}
 
 	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(jsonBody))
 	if err != nil {
-		fmt.Printf("Error making request: %v", err)
-		return result, err
+		return result, fmt.Errorf("error making request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// First, try to decode the response into a generic error structure
+	var errorResp struct {
+		Success bool   `json:"success"`
+		Error   string `json:"error"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&errorResp); err == nil {
+		if errorResp.Error == "No Access Token" || errorResp.Error == "Expired Token" {
+			fmt.Println("Your session has expired or does not exist, please authenticate to continue.")
+			authenticate()
+			return result, fmt.Errorf("authentication required: %s", errorResp.Error)
+		}
+	}
+
+	// Reset the response body for the actual result
+	resp.Body.Close()
+	resp, err = http.Post(endpoint, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return result, fmt.Errorf("error making request: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -47,8 +66,7 @@ func serverRequest[T any](endpoint string, body interface{}) (T, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		fmt.Printf("Error decoding response: %v", err)
-		return result, err
+		return result, fmt.Errorf("error decoding response: %v", err)
 	}
 
 	return result, nil

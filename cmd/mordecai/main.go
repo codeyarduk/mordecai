@@ -97,7 +97,7 @@ func linkCommand() {
 		return
 	} else if !tokenIsValid {
 		authenticate()
-		// Add further code here as needed
+		// This needs to be updated soon
 	}
 
 	var token, tokenErr = loadToken()
@@ -118,6 +118,7 @@ func linkCommand() {
 	repoId, err = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
 	if err != nil {
 		fmt.Println("Error sending data to server.")
+		fmt.Println(err)
 		return
 	}
 
