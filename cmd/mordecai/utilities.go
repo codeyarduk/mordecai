@@ -16,7 +16,7 @@ func showLoadingAnimation(message string, process func() error) error {
 			case <-done:
 				return
 			default:
-				fmt.Printf("\r%s %s", frames[i], message)
+				fmt.Printf("\r%s %s\n", frames[i], message)
 				i = (i + 1) % len(frames)
 				time.Sleep(100 * time.Millisecond)
 			}
