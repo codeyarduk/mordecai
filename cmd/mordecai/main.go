@@ -113,6 +113,7 @@ func linkCommand() {
 		return
 
 	}
+	// Get name of the context
 	repoName, repoId, err := linkRepo(token, workspaceId)
 	repoId, err = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
 	if err != nil {
@@ -123,6 +124,7 @@ func linkCommand() {
 	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
 	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 
+	// Add a watcher to the directory
 	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
