@@ -241,8 +241,7 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 		return "", "", fmt.Errorf("error getting the current repo name: %v", err)
 	}
 
-	// Create the request body
-	postData := struct {
+	requestBody := struct {
 		Token       string `json:"token"`
 		WorkspaceId string `json:"spaceId"`
 	}{
@@ -250,32 +249,15 @@ func linkRepo(token string, workspaceId string) (string, string, error) {
 		WorkspaceId: workspaceId,
 	}
 
-	// Marshal the postData into JSON
-	jsonData, err := json.Marshal(postData)
-	if err != nil {
-		return "", "", fmt.Errorf("error marshaling JSON: %v", err)
-	}
-
-	resp, err := http.Post(endpointURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", "", fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("failed to get workspaces. Status: %s", resp.Status)
-	}
-
-	// Read and parse the response body
-	var repos []struct {
+	type Repository struct {
 		RepoID   string `json:"contextId"`
 		RepoName string `json:"contextName"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
-		return "", "", fmt.Errorf("error decoding response: %v", err)
+	repos, err := serverRequest[[]Repository](endpointURL, requestBody)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch repositories: %v", err)
 	}
-
 	// Checks if current repo has been previously linked
 	for _, repo := range repos {
 		if repo.RepoName == currentRepoName {
