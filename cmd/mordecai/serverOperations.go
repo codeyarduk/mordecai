@@ -26,6 +26,35 @@ import (
 //       |_|
 //
 
+func serverRequest[T any](endpoint string, body interface{}) (T, error) {
+
+	var result T
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		fmt.Printf("Error marshaling request body: %v", err)
+		return result, err
+	}
+
+	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		fmt.Printf("Error making request: %v", err)
+		return result, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return result, fmt.Errorf("request failed with status: %s", resp.Status)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		fmt.Printf("Error decoding response: %v", err)
+		return result, err
+	}
+
+	return result, nil
+}
+
 func getWorkspaces(token string) (string, string, error) {
 	fmt.Println("Fetching available workspaces...")
 	endpointURL := fmt.Sprintf("https://api.%s/cli/spaces", siteUrl)
