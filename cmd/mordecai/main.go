@@ -77,16 +77,8 @@ func main() {
 //
 
 func linkCommand() {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error getting current directory: %v\n", err)
-		return
-	}
-	var dir, dirErr = readDir(currentDir)
-	if dirErr != nil {
-		fmt.Printf("Error reading current directory: %v\n", err)
-	}
 
+	// Check if token is valid
 	if tokenIsValid, err := checkIfTokenIsValid(); err != nil {
 		fmt.Printf("Error checking token: %v\n", err)
 		return
@@ -110,6 +102,17 @@ func linkCommand() {
 	}
 	// Get name of the context
 	repoName, repoId, err := linkRepo(token, workspaceId)
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current directory: %v\n", err)
+		return
+	}
+
+	var dir, dirErr = readDir(currentDir)
+	if dirErr != nil {
+		fmt.Printf("Error reading current directory: %v\n", err)
+	}
 
 	var dirContent, dirContentErr = getFileContents(dir)
 	if dirContentErr != nil {
