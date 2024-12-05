@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	version = "v0.0.32"
+	version = "v0.0.33"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
