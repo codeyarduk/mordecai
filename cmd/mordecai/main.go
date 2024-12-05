@@ -134,6 +134,9 @@ func linkCommand() {
 	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
 	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 
+	fmt.Println("\n\033[1;32m✓ The files listed below are being synced")
+
+	printFileTree(dir)
 	// Add a watcher to the directory
 	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"os"
 	"path/filepath"
@@ -92,6 +93,40 @@ func readDir(dirPath string) ([]string, error) {
 	}
 
 	return files, nil
+}
+
+func printFileTree(paths []string) {
+	// Create styles
+	dirStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#36FFFF")). // Changed to cyan color
+		Bold(true)
+
+	fileStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FAFAFA"))
+
+	treeStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#383838"))
+
+	tree := make(map[string][]string)
+
+	for _, path := range paths {
+		dir := filepath.Dir(path)
+		base := filepath.Base(path)
+		tree[dir] = append(tree[dir], base)
+	}
+
+	// Print the tree with styling
+	for dir, files := range tree {
+		fmt.Printf("%s\n", dirStyle.Render("📁 "+dir))
+
+		for i, file := range files {
+			prefix := treeStyle.Render("   ├── ")
+			if i == len(files)-1 {
+				prefix = treeStyle.Render("   └── ")
+			}
+			fmt.Printf("%s%s\n", prefix, fileStyle.Render(file))
+		}
+	}
 }
 
 type FileContent struct {
