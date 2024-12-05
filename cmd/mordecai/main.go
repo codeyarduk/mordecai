@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	version = "v0.0.33"
+	version = "v0.0.34"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -77,21 +77,8 @@ func main() {
 //
 
 func linkCommand() {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("Error getting current directory: %v\n", err)
-		return
-	}
-	var dir, dirErr = readDir(currentDir)
-	if dirErr != nil {
-		fmt.Printf("Error reading current directory: %v\n", err)
-	}
 
-	var dirContent, dirContentErr = getFileContents(dir)
-	if dirContentErr != nil {
-		fmt.Printf("Error reading current directory: %v\n", err)
-	}
-
+	// Check if token is valid
 	if tokenIsValid, err := checkIfTokenIsValid(); err != nil {
 		fmt.Printf("Error checking token: %v\n", err)
 		return
@@ -116,6 +103,22 @@ func linkCommand() {
 	// Get name of the context
 	repoName, repoId, err := linkRepo(token, workspaceId)
 
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current directory: %v\n", err)
+		return
+	}
+
+	var dir, dirErr = readDir(currentDir)
+	if dirErr != nil {
+		fmt.Printf("Error reading current directory: %v\n", err)
+	}
+
+	var dirContent, dirContentErr = getFileContents(dir)
+	if dirContentErr != nil {
+		fmt.Printf("Error reading current directory: %v\n", err)
+	}
+
 	err = showLoadingAnimation("Initialising repository...", func() error {
 		var sendErr error
 		repoId, sendErr = sendDataToServer(dirContent, token, workspaceId, repoName, repoId, false)
@@ -131,6 +134,9 @@ func linkCommand() {
 	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
 	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 
+	fmt.Println("\n\033[1;32m✓ The files listed below are being synced")
+
+	printFileTree(dir)
 	// Add a watcher to the directory
 	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {
