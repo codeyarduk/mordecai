@@ -87,11 +87,6 @@ func linkCommand() {
 		fmt.Printf("Error reading current directory: %v\n", err)
 	}
 
-	var dirContent, dirContentErr = getFileContents(dir)
-	if dirContentErr != nil {
-		fmt.Printf("Error reading current directory: %v\n", err)
-	}
-
 	if tokenIsValid, err := checkIfTokenIsValid(); err != nil {
 		fmt.Printf("Error checking token: %v\n", err)
 		return
@@ -115,6 +110,11 @@ func linkCommand() {
 	}
 	// Get name of the context
 	repoName, repoId, err := linkRepo(token, workspaceId)
+
+	var dirContent, dirContentErr = getFileContents(dir)
+	if dirContentErr != nil {
+		fmt.Printf("Error reading current directory: %v\n", err)
+	}
 
 	err = showLoadingAnimation("Initialising repository...", func() error {
 		var sendErr error
