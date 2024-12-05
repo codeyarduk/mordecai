@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	version = "v0.0.33"
+	version = "v0.0.34"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -18,7 +18,7 @@ var supportedFileTypes = []string{
 }
 
 var (
-	siteUrl = "devwilson.dev"
+	siteUrl = "mordecaiapp.com"
 )
 
 //                          _                _
