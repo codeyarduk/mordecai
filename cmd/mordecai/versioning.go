@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"time"
 )
 
 //                     _             _
@@ -36,64 +35,47 @@ func updateVersion() error {
 		}
 
 		if finalModel.(VersionUpdateModel).choice == "y" {
-
-			// Create a channel to signal when the update is complete
-			done := make(chan bool)
-
-			// Start the loading animation in a separate goroutine
-			go func() {
-				frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-				i := 0
-				for {
-					select {
-					case <-done:
-						return
-					default:
-						fmt.Printf("\r%s Updating Mordecai...", frames[i])
-						i = (i + 1) % len(frames)
-						time.Sleep(100 * time.Millisecond)
-					}
-				}
-			}()
-
-			// Checks how the CLI tool was initally installed
-			methodOfInstallation, err := installationMethodCommand()
-			if err != nil {
-				fmt.Println("Error checking installation method:", err)
-				return err
-			}
-			var cmd *exec.Cmd
-			var updateMessage string
-
-			switch methodOfInstallation {
-			case "brew":
-				// First run brew update
-				updateCmd := exec.Command("brew", "update")
-				updateOutput, err := updateCmd.CombinedOutput()
+			err = showLoadingAnimation("Updating Mordecai...", func() error {
+				// Checks how the CLI tool was initally installed
+				methodOfInstallation, err := installationMethodCommand()
 				if err != nil {
-					fmt.Printf("Error updating Homebrew: %v\n%s", err, updateOutput)
-					return err
+					return fmt.Errorf("Error checking installation method: %v", err)
 				}
-				cmd = exec.Command("brew", "upgrade", "mordecai")
-				updateMessage = "Successfully updated Mordecai using Brew"
-			case "curl":
-				cmd = exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash")
-				updateMessage = "Successfully updated Mordecai using Brew"
-			default:
-				fmt.Println("Unknown installation method. Unable to update.")
-				return err
 
-			}
+				var cmd *exec.Cmd
+				var updateMessage string
 
-			output, err := cmd.CombinedOutput()
+				switch methodOfInstallation {
+				case "brew":
+					// First run brew update
+					updateCmd := exec.Command("brew", "update")
+					updateOutput, err := updateCmd.CombinedOutput()
+					if err != nil {
+						return fmt.Errorf("Error updating Homebrew: %v\n%s", err, updateOutput)
+					}
+					cmd = exec.Command("brew", "upgrade", "mordecai")
+					updateMessage = "Successfully updated Mordecai using Brew"
+				case "curl":
+					cmd = exec.Command("bash", "-c", "curl -sSL https://raw.githubusercontent.com/codeyarduk/mordecai/main/install.sh | bash")
+					updateMessage = "Successfully updated Mordecai using Brew"
+				default:
+					return fmt.Errorf("Unknown installation method. Unable to update.")
+				}
+
+				output, err := cmd.CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("Error executing command: %v", err)
+				}
+
+				fmt.Printf("\n%s\n%s\n", output, updateMessage)
+				os.Exit(0)
+				return nil
+			})
+
 			if err != nil {
-				fmt.Printf("Error executing command: %v\n", err)
+				fmt.Println(err)
 				return err
 			}
-
-			fmt.Printf("\n%s\n%s\n", output, updateMessage)
-
-			os.Exit(0)
 		}
 
 		return err
