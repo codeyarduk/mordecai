@@ -181,6 +181,7 @@ func (m *Model) flattenTree() {
 
 func (m Model) View() string {
 	var s strings.Builder
+	rootDepth := strings.Count(m.root.path, string(filepath.Separator))
 
 	for i, node := range m.nodes {
 		cursor := " "
@@ -188,7 +189,11 @@ func (m Model) View() string {
 			cursor = ">"
 		}
 
-		indent := strings.Repeat("  ", strings.Count(node.path, string(filepath.Separator)))
+		// Calculate relative indent by subtracting root depth
+		pathDepth := strings.Count(node.path, string(filepath.Separator))
+		relativeDepth := pathDepth - rootDepth
+		indent := strings.Repeat("  ", relativeDepth)
+
 		icon := "📄"
 		if node.isDir {
 			if node.expanded {
