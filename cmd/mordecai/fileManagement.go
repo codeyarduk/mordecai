@@ -183,28 +183,46 @@ func (m Model) View() string {
 	var s strings.Builder
 	rootDepth := strings.Count(m.root.path, string(filepath.Separator))
 
+	// Header
+	s.WriteString("────────────\n\n")
+
 	for i, node := range m.nodes {
-		cursor := " "
+		// Make cursor and selection more visible
+		cursor := "  "
 		if i == m.cursor {
-			cursor = ">"
+			cursor = "▶ " // More visible cursor
 		}
 
-		// Calculate relative indent by subtracting root depth
 		pathDepth := strings.Count(node.path, string(filepath.Separator))
 		relativeDepth := pathDepth - rootDepth
 		indent := strings.Repeat("  ", relativeDepth)
 
+		// Enhanced directory indicators
 		icon := "📄"
+		suffix := ""
 		if node.isDir {
 			if node.expanded {
 				icon = "📂"
+				suffix = "/"
 			} else {
 				icon = "📁"
+				suffix = "/"
 			}
 		}
 
-		s.WriteString(fmt.Sprintf("%s %s %s %s\n", cursor, indent, icon, node.name))
+		// Highlight current selection
+		line := fmt.Sprintf("%s%s %s %s%s", cursor, indent, icon, node.name, suffix)
+		if i == m.cursor {
+			line = "\x1b[7m" + line + "\x1b[0m" // Inverse colors for selection
+		}
+		s.WriteString(line + "\n")
 	}
+
+	// Status bar
+	s.WriteString("\n────────────\n")
+	s.WriteString("↑/↓: Navigate • Space/Enter: Expand/Collapse • q: Quit\n\n")
+	s.WriteString("\033[1;33m⚠ Check .gitignore if files are missing\033[0m\n")
+	s.WriteString("\033[1;33m⚠ See docs for supported languages\033[0m\n")
 
 	return s.String()
 }
