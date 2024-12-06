@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"os"
 	"path/filepath"
@@ -95,38 +95,160 @@ func readDir(dirPath string) ([]string, error) {
 	return files, nil
 }
 
-func printFileTree(paths []string) {
-	// Create styles
-	dirStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#36FFFF")). // Changed to cyan color
-		Bold(true)
+// TreeNode represents a file or directory
+type TreeNode struct {
+	path     string
+	name     string
+	isDir    bool
+	expanded bool
+	children []*TreeNode
+}
 
-	fileStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FAFAFA"))
+// Model represents the application state
+type Model struct {
+	root   *TreeNode
+	cursor int
+	nodes  []*TreeNode // flattened view of visible nodes
+}
 
-	treeStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#383838"))
+func (m Model) Init() tea.Cmd {
+	return nil
+}
 
-	tree := make(map[string][]string)
+// Build the tree from paths
+func printFileTree(paths []string, currentDir string) *TreeNode {
+	root := &TreeNode{
+		path:     currentDir,
+		name:     filepath.Base(currentDir),
+		isDir:    true,
+		expanded: true,
+	}
 
 	for _, path := range paths {
-		dir := filepath.Dir(path)
-		base := filepath.Base(path)
-		tree[dir] = append(tree[dir], base)
-	}
+		// Make path relative to current directory
+		relPath, err := filepath.Rel(currentDir, path)
+		if err != nil {
+			continue
+		}
 
-	// Print the tree with styling
-	for dir, files := range tree {
-		fmt.Printf("%s\n", dirStyle.Render("📁 "+dir))
+		parts := strings.Split(filepath.Clean(relPath), string(filepath.Separator))
+		current := root
 
-		for i, file := range files {
-			prefix := treeStyle.Render("   ├── ")
-			if i == len(files)-1 {
-				prefix = treeStyle.Render("   └── ")
+		for i, part := range parts {
+			if part == "" || part == "." {
+				continue
 			}
-			fmt.Printf("%s%s\n", prefix, fileStyle.Render(file))
+
+			found := false
+			for _, child := range current.children {
+				if child.name == part {
+					current = child
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				isDir := i < len(parts)-1
+				node := &TreeNode{
+					path:     filepath.Join(current.path, part),
+					name:     part,
+					isDir:    isDir,
+					expanded: false,
+				}
+				current.children = append(current.children, node)
+				current = node
+			}
 		}
 	}
+	return root
+}
+
+// Flatten visible nodes for display
+func (m *Model) flattenTree() {
+	m.nodes = make([]*TreeNode, 0)
+	var flatten func(*TreeNode, int)
+	flatten = func(node *TreeNode, depth int) {
+		m.nodes = append(m.nodes, node)
+		if node.expanded && node.isDir {
+			for _, child := range node.children {
+				flatten(child, depth+1)
+			}
+		}
+	}
+	flatten(m.root, 0)
+}
+
+func (m Model) View() string {
+	var s strings.Builder
+	rootDepth := strings.Count(m.root.path, string(filepath.Separator))
+
+	// Header
+	s.WriteString("────────────\n\n")
+
+	for i, node := range m.nodes {
+		// Make cursor and selection more visible
+		cursor := "  "
+		if i == m.cursor {
+			cursor = "▶ " // More visible cursor
+		}
+
+		pathDepth := strings.Count(node.path, string(filepath.Separator))
+		relativeDepth := pathDepth - rootDepth
+		indent := strings.Repeat("  ", relativeDepth)
+
+		// Enhanced directory indicators
+		icon := "📄"
+		suffix := ""
+		if node.isDir {
+			if node.expanded {
+				icon = "📂"
+				suffix = "/"
+			} else {
+				icon = "📁"
+				suffix = "/"
+			}
+		}
+
+		// Highlight current selection
+		line := fmt.Sprintf("%s%s %s %s%s", cursor, indent, icon, node.name, suffix)
+		if i == m.cursor {
+			line = "\x1b[7m" + line + "\x1b[0m" // Inverse colors for selection
+		}
+		s.WriteString(line + "\n")
+	}
+
+	// Status bar
+	s.WriteString("\n────────────\n")
+	s.WriteString("↑/↓: Navigate • Space/Enter: Expand/Collapse • q: Quit\n\n")
+	s.WriteString("\033[1;33m⚠ Check .gitignore if files are missing\033[0m\n")
+	s.WriteString("\033[1;33m⚠ See docs for supported languages\033[0m\n")
+
+	return s.String()
+}
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "up":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down":
+			if m.cursor < len(m.nodes)-1 {
+				m.cursor++
+			}
+		case "enter", "space":
+			if m.nodes[m.cursor].isDir {
+				m.nodes[m.cursor].expanded = !m.nodes[m.cursor].expanded
+				m.flattenTree()
+			}
+		}
+	}
+	return m, nil
 }
 
 type FileContent struct {

@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	tea "github.com/charmbracelet/bubbletea"
 	"os"
 )
 
 const (
-	version = "v0.0.35"
+	version = "v0.0.36"
 
 	githubAPI = "https://api.github.com/repos/codeyarduk/mordecai/releases/latest"
 )
@@ -134,9 +135,17 @@ func linkCommand() {
 	fmt.Printf("\033[1;32m✓ Syncing local repository \033[1;36m%s\033[1;32m to remote space \033[1;36m%s\033[0m\n", repoName, workspaceName)
 	fmt.Println("\033[1;33m⚠ ALERT: Please leave this open while programming\033[0m")
 	fmt.Println("\n\033[1;32m✓ Tracked files:\033[0m")
-	fmt.Println("\033[1;33m⚠ Check .gitignore if files are missing\033[0m")
-	fmt.Println("\033[1;33m⚠ See docs for supported languages\033[0m")
-	printFileTree(dir) // Add a watcher to the directory
+
+	root := printFileTree(dir, currentDir) // Add a watcher to the directory
+	initialModel := Model{root: root, cursor: 0}
+	initialModel.flattenTree()
+
+	p := tea.NewProgram(initialModel)
+	if _, err := p.Run(); err != nil {
+		fmt.Println("Error running program:", err)
+		os.Exit(1)
+	}
+
 	err = watchDirectory(currentDir, workspaceId, repoName, repoId, token)
 	if err != nil {
 		fmt.Printf("Error setting up directory watcher: %v\n", err)
