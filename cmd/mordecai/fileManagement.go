@@ -259,8 +259,16 @@ type FileContent struct {
 
 func getFileContents(files []string) ([]FileContent, error) {
 	var fileContents []FileContent
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("error getting current directory: %v", err)
+	}
+	baseDir := filepath.Base(currentDir)
 
 	for _, filePath := range files {
+
+		relPath, err := filepath.Rel(currentDir, filePath)
+		fullRelPath := filepath.Join(baseDir, relPath)
 		// Check if it's a regular file
 		info, err := os.Stat(filePath)
 		if err != nil {
@@ -289,7 +297,7 @@ func getFileContents(files []string) ([]FileContent, error) {
 		}
 
 		fileContents = append(fileContents, FileContent{
-			FilePath:      filePath,
+			FilePath:      fullRelPath,
 			DataChunks:    content,
 			FileExtension: ext,
 		})
